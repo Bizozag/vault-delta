@@ -40,6 +40,18 @@ public sealed class PatchManifestJsonTests
         Assert.Throws<InvalidDataException>(() => PatchManifestJson.Deserialize(System.Text.Encoding.UTF8.GetBytes(changed)));
     }
 
+    [Fact]
+    public void Deserialize_rejects_an_inconsistent_payload_path()
+    {
+        byte[] json = PatchManifestJson.Serialize(CreateManifest());
+        string changed = System.Text.Encoding.UTF8.GetString(json).Replace(
+            "files/Notes/new.md",
+            "files/other.md",
+            StringComparison.Ordinal);
+
+        Assert.Throws<InvalidDataException>(() => PatchManifestJson.Deserialize(System.Text.Encoding.UTF8.GetBytes(changed)));
+    }
+
     private static PatchManifest CreateManifest()
     {
         FileFingerprint fingerprint = new(5, DateTimeOffset.UnixEpoch, new string('a', 64));

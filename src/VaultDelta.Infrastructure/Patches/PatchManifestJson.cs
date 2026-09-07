@@ -98,7 +98,7 @@ public static class PatchManifestJson
 
         if (entryKind == SnapshotEntryKind.Directory)
         {
-            return type switch
+            PatchOperation directoryOperation = type switch
             {
                 PatchOperationType.Add => PatchOperation.AddDirectory(
                     document.Sequence,
@@ -113,9 +113,12 @@ public static class PatchManifestJson
                 PatchOperationType.Modify => throw new InvalidDataException("Directories cannot have modify operations."),
                 _ => throw new InvalidDataException($"Unsupported manifest operation type: {document.Type}."),
             };
+
+            ValidateDeclaredFields(document, directoryOperation);
+            return directoryOperation;
         }
 
-        return type switch
+        PatchOperation operation = type switch
         {
             PatchOperationType.Add => PatchOperation.Add(
                 document.Sequence,
@@ -137,6 +140,23 @@ public static class PatchManifestJson
                 Require(document.NewFingerprint, "newFingerprint")),
             _ => throw new InvalidDataException($"Unsupported manifest operation type: {document.Type}."),
         };
+
+        ValidateDeclaredFields(document, operation);
+        return operation;
+    }
+
+    private static void ValidateDeclaredFields(OperationDocument document, PatchOperation operation)
+    {
+        if (!StringComparer.Ordinal.Equals(document.PayloadPath, operation.PayloadPath?.Value))
+        {
+            throw new InvalidDataException("Manifest operation payloadPath is inconsistent with its target path.");
+        }
+
+        if (document.OldFingerprint != operation.OldFingerprint
+            || document.NewFingerprint != operation.NewFingerprint)
+        {
+            throw new InvalidDataException("Manifest operation fingerprints are inconsistent with its operation type.");
+        }
     }
 
     private static T Require<T>(T? value, string name) where T : class =>
