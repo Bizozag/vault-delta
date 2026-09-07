@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vaultdelta.local/schema/manifest-v1.json",
+  "title": "Vault Delta Patch Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "patchId",
+    "createdAtUtc",
+    "generatorVersion",
+    "rulesId",
+    "baseSnapshotId",
+    "targetSnapshotId",
+    "summary",
+    "operations"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "patchId": { "type": "string", "minLength": 1 },
+    "createdAtUtc": { "type": "string", "format": "date-time" },
+    "generatorVersion": { "type": "string", "minLength": 1 },
+    "rulesId": { "type": "string", "minLength": 1 },
+    "baseSnapshotId": { "type": "string", "minLength": 1 },
+    "targetSnapshotId": { "type": "string", "minLength": 1 },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "modified", "deleted", "renamed", "payloadBytes"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "modified": { "type": "integer", "minimum": 0 },
+        "deleted": { "type": "integer", "minimum": 0 },
+        "renamed": { "type": "integer", "minimum": 0 },
+        "payloadBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sequence", "type", "entryKind"],
+        "properties": {
+          "sequence": { "type": "integer", "minimum": 1 },
+          "type": { "enum": ["add", "modify", "delete", "rename"] },
+          "entryKind": { "enum": ["file", "directory"] },
+          "basePath": { "$ref": "#/$defs/relativePath" },
+          "targetPath": { "$ref": "#/$defs/relativePath" },
+          "payloadPath": { "$ref": "#/$defs/relativePath" },
+          "oldFingerprint": { "$ref": "#/$defs/fingerprint" },
+          "newFingerprint": { "$ref": "#/$defs/fingerprint" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "^(?:/|\\\\|[A-Za-z]:)" }
+    },
+    "fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["length", "lastWriteTimeUtc", "sha256"],
+      "properties": {
+        "length": { "type": "integer", "minimum": 0 },
+        "lastWriteTimeUtc": { "type": "string", "format": "date-time" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}
