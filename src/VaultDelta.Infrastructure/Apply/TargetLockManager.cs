@@ -1,9 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
+using VaultDelta.Application.Abstractions;
 
 namespace VaultDelta.Infrastructure.Apply;
 
-public sealed class TargetLockManager
+public sealed class TargetLockManager : IApplyLockManager
 {
     private const string LockFileName = ".vaultdelta.lock";
     private readonly Func<int, bool> _isProcessActive;
@@ -69,6 +70,12 @@ public sealed class TargetLockManager
         string operationId,
         CancellationToken cancellationToken = default) =>
         AcquireAsync(targetRoot, operationId, replaceStale: false, cancellationToken);
+
+    async ValueTask<IAsyncDisposable> IApplyLockManager.AcquireAsync(
+        string targetRoot,
+        string operationId,
+        CancellationToken cancellationToken) =>
+        await AcquireAsync(targetRoot, operationId, cancellationToken).ConfigureAwait(false);
 
     public async ValueTask<TargetLock> AcquireAsync(
         string targetRoot,

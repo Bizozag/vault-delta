@@ -1,5 +1,6 @@
 using VaultDelta.Domain.Paths;
 using VaultDelta.Application.Abstractions;
+using VaultDelta.Domain.Snapshots;
 
 namespace VaultDelta.Infrastructure.Apply;
 
@@ -7,6 +8,13 @@ public sealed class BackupStore(IContentHasher contentHasher) : IBackupStore
 {
     private readonly IContentHasher _contentHasher =
         contentHasher ?? throw new ArgumentNullException(nameof(contentHasher));
+
+    public string GetDeletedBackupRelativePath(RelativePath relativePath, SnapshotEntryKind entryKind)
+    {
+        ArgumentNullException.ThrowIfNull(relativePath);
+        string category = entryKind == SnapshotEntryKind.Directory ? "deleted-directories" : "deleted";
+        return $"{category}/{relativePath.Value}";
+    }
 
     public async ValueTask<string> BackupFileAsync(
         string targetRoot,
@@ -44,8 +52,10 @@ public sealed class BackupStore(IContentHasher contentHasher) : IBackupStore
         RelativePath relativePath)
     {
         string sourcePath = ResolveWithin(targetRoot, relativePath.Value);
-        string category = Directory.Exists(sourcePath) ? "deleted-directories" : "deleted";
-        string backupRelativePath = $"{category}/{relativePath.Value}";
+        SnapshotEntryKind entryKind = Directory.Exists(sourcePath)
+            ? SnapshotEntryKind.Directory
+            : SnapshotEntryKind.File;
+        string backupRelativePath = GetDeletedBackupRelativePath(relativePath, entryKind);
         string destinationPath = ResolveWithin(backupRoot, backupRelativePath);
         string? parent = Path.GetDirectoryName(destinationPath);
         if (string.IsNullOrEmpty(parent))

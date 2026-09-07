@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VaultDelta.Application.Abstractions;
 using VaultDelta.Domain.Apply;
 using VaultDelta.Domain.Patches;
 using VaultDelta.Domain.Paths;
@@ -7,7 +8,7 @@ using VaultDelta.Domain.Snapshots;
 
 namespace VaultDelta.Infrastructure.Apply;
 
-public sealed class JsonApplyJournalStore
+public sealed class JsonApplyJournalStore : IApplyJournalStore
 {
     private readonly JsonSerializerOptions _options = new()
     {

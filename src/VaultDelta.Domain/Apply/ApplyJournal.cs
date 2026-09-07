@@ -134,10 +134,15 @@ public sealed class ApplyJournal
         (current, next) switch
         {
             (ApplyJournalStatus.Prepared, ApplyJournalStatus.Applying) => true,
+            (ApplyJournalStatus.Prepared, ApplyJournalStatus.NeedsRollback) => true,
+            (ApplyJournalStatus.Prepared, ApplyJournalStatus.RollingBack) => true,
             (ApplyJournalStatus.Applying, ApplyJournalStatus.Verifying) => true,
             (ApplyJournalStatus.Applying, ApplyJournalStatus.NeedsRollback) => true,
+            (ApplyJournalStatus.Applying, ApplyJournalStatus.RollingBack) => true,
             (ApplyJournalStatus.Verifying, ApplyJournalStatus.Committed) => true,
             (ApplyJournalStatus.Verifying, ApplyJournalStatus.NeedsRollback) => true,
+            (ApplyJournalStatus.Verifying, ApplyJournalStatus.RollingBack) => true,
+            (ApplyJournalStatus.Committed, ApplyJournalStatus.RollingBack) => true,
             (ApplyJournalStatus.NeedsRollback, ApplyJournalStatus.RollingBack) => true,
             (ApplyJournalStatus.RollingBack, ApplyJournalStatus.RolledBack) => true,
             _ => false,
