@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0005](0005-dotnet-10-avalonia-cross-platform-desktop.md)
 
 ## Context
 

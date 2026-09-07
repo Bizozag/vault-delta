@@ -2,11 +2,11 @@
 
 ## 1. 架构概览
 
-Vault Delta 采用模块化单体架构。核心逻辑作为独立 .NET 类库，桌面 UI 和命令行入口只负责编排与展示。补丁生成器和补丁应用器使用同一套领域模型和清单验证规则，但运行在清晰分离的工作流中。
+Vault Delta 采用模块化单体架构。核心逻辑作为独立 .NET 类库，MVP 桌面 UI 只负责编排与展示。补丁生成器和补丁应用器使用同一套领域模型和清单验证规则，但运行在清晰分离的工作流中。Application 保持 UI 无关，以便未来按需增加 CLI，而不把 CLI 纳入首版范围。
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Desktop UI / CLI                         │
+│                       Desktop UI                            │
 │  路径选择 · 进度 · 差异审核 · 风险确认 · 日志与结果展示      │
 └──────────────────────────────┬──────────────────────────────┘
                                │ Application commands
@@ -29,10 +29,9 @@ Vault Delta 采用模块化单体架构。核心逻辑作为独立 .NET 类库�
 
 ## 2. 技术基线
 
-- Runtime：.NET 8 LTS。
+- Runtime：.NET 10 LTS。
 - 语言：C#，启用 nullable reference types。
 - 桌面 UI：Avalonia。
-- CLI：System.CommandLine 或等价轻量实现。
 - 序列化：System.Text.Json。
 - 哈希：SHA-256；实现隐藏在 `IContentHasher` 后。
 - 测试：xUnit、FluentAssertions，必要时使用 FsCheck 做属性测试。
@@ -48,7 +47,6 @@ src/
   VaultDelta.Domain/
   VaultDelta.Application/
   VaultDelta.Infrastructure/
-  VaultDelta.Cli/
   VaultDelta.Desktop/
 tests/
   VaultDelta.Domain.Tests/
@@ -61,14 +59,26 @@ docs/
 依赖方向必须保持：
 
 ```text
-Desktop/CLI → Application → Domain
+Desktop → Application → Domain
 Infrastructure → Application/Domain interfaces
 Domain → 无项目依赖
 ```
 
 Domain 不允许引用 UI、文件系统或压缩库。Application 不允许直接调用 `File.*`，必须通过端口接口访问外部世界。
 
-## 4. 数据模型
+## 4. 运行与发布矩阵
+
+| 平台 | Runtime Identifier | MVP 产物 | 验收重点 |
+|---|---|---|---|
+| Windows x64 | `win-x64` | self-contained 应用目录/安装包 | 长路径、文件占用、NTFS 原子替换 |
+| macOS Apple Silicon | `osx-arm64` | `.app`，公开发布时置于 `.dmg` | 真实 ARM64 运行、签名、公证、外接卷 |
+| macOS Intel | `osx-x64` | `.app`，公开发布时置于 `.dmg` | x64 构建、启动与兼容性验证 |
+
+Avalonia 的原生 macOS 后端提供窗口、输入、拖放、文件对话框、辅助功能以及 Metal/OpenGL 渲染。Metal 是渲染后端能力，不是需要单独维护的业务版本。核心项目使用普通 `net10.0`，只有确实需要 Apple 专属 API 时才评估 `net10.0-macos` 工作负载。
+
+Windows 可完成 macOS 交叉编译，但 Developer ID 签名、hardened runtime、公证和最终安装验证必须在 macOS 环境或 macOS CI runner 上执行。
+
+## 5. 数据模型
 
 主要不可变模型：
 
@@ -80,7 +90,7 @@ Domain 不允许引用 UI、文件系统或压缩库。Application 不允许直�
 - `PatchManifest`：补丁身份、基线、目标、操作和载荷摘要。
 - `ApplyJournal`：应用事务的逐步状态和备份映射。
 
-## 5. 核心不变量
+## 6. 核心不变量
 
 1. 清单中的每条路径都是根目录下的规范相对路径。
 2. 同一目标路径最多有一个最终写操作。
@@ -90,7 +100,19 @@ Domain 不允许引用 UI、文件系统或压缩库。Application 不允许直�
 6. Apply 成功意味着所有清单操作完成且最终指纹匹配。
 7. Rollback 成功意味着所有已执行操作按逆序撤销并完成校验。
 
-## 6. 扩展策略
+## 7. 平台适配边界
+
+Infrastructure 提供统一接口并封装平台差异：
+
+- 路径比较、大小写折叠和 Unicode 规范化检测。
+- 符号链接、Windows 重解析点和 macOS 特殊条目的识别与拒绝。
+- 同卷临时文件、原子 rename/replace、flush 与权限错误映射。
+- Windows 长路径和 macOS 外接卷/大小写敏感卷行为。
+- 应用包路径、日志与备份目录的系统约定。
+
+为保证补丁可从一个平台传到另一个平台，manifest 使用 `/` 作为分隔符，并拒绝经大小写折叠后冲突的路径，即使生成端位于大小写敏感卷。
+
+## 8. 扩展策略
 
 MVP 不引入插件系统。未来扩展通过稳定接口完成：
 
@@ -102,7 +124,7 @@ MVP 不引入插件系统。未来扩展通过稳定接口完成：
 
 只有当第二种实现真实出现时才抽象可插拔注册机制，避免提前工程化。
 
-## 7. 主要失败模式
+## 9. 主要失败模式
 
 | 失败 | 影响 | 处理 |
 |---|---|---|
@@ -113,8 +135,10 @@ MVP 不引入插件系统。未来扩展通过稳定接口完成：
 | 目标端存在独立修改 | 可能覆盖用户数据 | 基线冲突列表，默认阻断 |
 | 应用进程崩溃 | 目标处于中间态 | 下次启动读取 Journal，强制继续回滚或恢复 |
 | 备份目录不可写 | 无法恢复 | 在任何修改前阻断 |
+| 平台不支持的路径或特殊条目 | 补丁无法安全跨平台 | 生成阶段阻断并列出冲突路径 |
+| macOS 应用未签名或公证失败 | 用户无法可信安装 | 发布流水线失败，不发布该候选版本 |
 
-## 8. 可观测性
+## 10. 可观测性
 
 每次操作生成一个 `operationId`。日志至少记录：
 

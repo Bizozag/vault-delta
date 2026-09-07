@@ -2,6 +2,8 @@
 
 Vault Delta 是一个面向大型 Obsidian 笔记库的离线增量补丁工具。它比较两个目录快照，生成仅包含新增、修改、删除与重命名信息的可携带补丁包，并在目标端通过预检、备份、应用、校验和回滚完成安全更新。
 
+MVP 面向 Windows 与 macOS，采用 C#、.NET 10 LTS 和 Avalonia。默认生成便于传输的 ZIP 补丁，同时保留目录包作为检查与调试选项。macOS 发布同时覆盖 Apple Silicon (`osx-arm64`) 和 Intel (`osx-x64`)；Metal 渲染由 Avalonia 的 macOS 后端提供，不单独维护“Metal 版”。
+
 ## 当前状态
 
 项目处于设计与实施规划阶段，尚未包含可执行程序。
@@ -14,6 +16,7 @@ Vault Delta 是一个面向大型 Obsidian 笔记库的离线增量补丁工具�
 - 应用前验证目标库基线，拒绝覆盖未经识别的目标端修改。
 - 应用时先备份，失败时可回滚，完成后进行内容校验。
 - 默认提供 Obsidian 友好的排除规则，但不擅自忽略整个 `.obsidian`。
+- 默认包含 `.obsidian/plugins/**`，默认排除 `.trash/**`。
 
 ## 文档入口
 

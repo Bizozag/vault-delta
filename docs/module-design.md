@@ -14,19 +14,9 @@
 
 边界：不读取文件内容、不计算差异、不直接复制或删除文件。
 
-### CLI
+### Future CLI Adapter
 
-计划命令：
-
-```text
-vaultdelta compare --base <dir> --target <dir> [--report <file>]
-vaultdelta build --base <dir> --target <dir> --output <path>
-vaultdelta inspect --patch <path>
-vaultdelta apply --patch <path> --vault <dir>
-vaultdelta rollback --journal <path>
-```
-
-CLI 与 Desktop 必须调用相同 Application 服务。
+MVP 不提供公开 CLI。Application 工作流不依赖 UI，后续只有在出现自动化需求且能够承担额外参数设计、错误码、文档和独立验收成本时，才增加轻量 CLI 适配器。
 
 ## 2. Snapshot Scanner
 
@@ -36,7 +26,7 @@ CLI 与 Desktop 必须调用相同 Application 服务。
 
 子组件：
 
-- `DirectoryWalker`：递归枚举，不跟随重解析点。
+- `DirectoryWalker`：递归枚举，不跟随链接或特殊文件系统条目。
 - `PathNormalizer`：生成安全的 `RelativePath`。
 - `FilterEvaluator`：应用包含/排除规则。
 - `MetadataReader`：获取大小、时间戳和属性。
@@ -80,7 +70,7 @@ CLI 与 Desktop 必须调用相同 Application 服务。
 
 验证边界：
 
-- 同一相对路径大小写冲突在 Windows 上阻断。
+- 同一相对路径经大小写折叠后冲突时在所有平台阻断，确保补丁可移植到 Windows 或大小写不敏感的 macOS 卷。
 - 文件与目录同路径类型变化拆为删除旧类型、创建新类型，并标为高风险。
 - DiffSet 必须满足目标路径唯一性。
 
@@ -102,11 +92,11 @@ MVP 预设建议：
   Thumbs.db
   Desktop.ini
   .DS_Store
+  .trash/**
   .obsidian/workspace.json
   .obsidian/workspace-mobile.json
 
-用户决定：
-  .trash/**
+默认包含：
   .obsidian/plugins/**
   .obsidian/themes/**
 ```
@@ -117,7 +107,7 @@ MVP 预设建议：
 
 输入：已审核 DiffSet、新快照、输出位置、包选项。
 
-输出：完整补丁目录或 ZIP。
+输出：默认 ZIP；可选完整补丁目录。
 
 步骤：
 
@@ -125,9 +115,9 @@ MVP 预设建议：
 2. 复制 Added/Modified/Renamed 的新内容到 `files/`。
 3. 每次复制后验证长度和哈希。
 4. 生成规范化 manifest。
-5. 生成 README 和应用器文件。
+5. 生成 README 与兼容应用版本说明。
 6. 对包内容生成总摘要。
-7. 可选压缩并重新读取验证。
+7. 默认压缩为 ZIP 并重新读取验证；目录模式跳过压缩但执行同等 Inspector 校验。
 8. 原子发布最终产物。
 
 验证边界：任何一步失败则不发布最终包；临时产物带 `.incomplete` 标记并可安全清理。
@@ -213,3 +203,14 @@ Rollback 本身也写日志并可幂等重试。
 - `summary.txt`
 
 所有报告使用 UTF-8，无 BOM；机器格式使用稳定字段名，展示文本可本地化。
+
+## 12. Platform and Distribution Adapters
+
+职责：
+
+- 将统一文件系统端口映射到 Windows 与 macOS 行为。
+- 检测卷的大小写、链接、权限、原子替换与可用空间能力。
+- 产出 `win-x64`、`osx-arm64`、`osx-x64` self-contained 发布目录。
+- 将 macOS 发布目录封装为 `.app`，生成 `Info.plist`，并在发布流水线执行签名、公证和 `.dmg` 包装。
+
+验证边界：平台能力探测失败或无法证明原子替换/备份可用时，Apply 必须在任何写入前阻断。

@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 构建一个 Windows 优先的桌面与 CLI 工具，能够生成、检查、应用并回滚 Obsidian 文件库的离线增量补丁。
+**Goal:** 构建一个支持 Windows 与 macOS 的桌面工具，能够生成、检查、应用并回滚 Obsidian 文件库的离线增量补丁。
 
-**Architecture:** 使用 .NET 8 模块化单体。Domain 持有路径、指纹、差异和补丁模型；Application 编排 Gate 工作流；Infrastructure 实现文件系统、哈希、ZIP 和 Journal；CLI 与 Avalonia Desktop 共享 Application 服务。
+**Architecture:** 使用 .NET 10 模块化单体。Domain 持有路径、指纹、差异和补丁模型；Application 编排 Gate 工作流；Infrastructure 实现跨平台文件系统、哈希、ZIP 和 Journal；Avalonia Desktop 是 MVP 的唯一展示层。核心保持 UI 无关，但不为尚未需要的 CLI 增加开发与验收工作。
 
-**Tech Stack:** C#、.NET 8、Avalonia、System.Text.Json、xUnit、FluentAssertions、FsCheck。
+**Tech Stack:** C#、.NET 10 LTS、Avalonia、System.Text.Json、xUnit、FluentAssertions、FsCheck、GitHub Actions Windows/macOS runners。
 
 ---
 
@@ -21,7 +21,6 @@
 - Create: `src/VaultDelta.Domain/VaultDelta.Domain.csproj`
 - Create: `src/VaultDelta.Application/VaultDelta.Application.csproj`
 - Create: `src/VaultDelta.Infrastructure/VaultDelta.Infrastructure.csproj`
-- Create: `src/VaultDelta.Cli/VaultDelta.Cli.csproj`
 - Create: `src/VaultDelta.Desktop/VaultDelta.Desktop.csproj`
 - Create: matching projects under `tests/`
 
@@ -43,7 +42,7 @@ Steps:
 Steps:
 
 1. 脚本依次执行 format check、build、test。
-2. CI 使用 Windows runner 和 .NET 8。
+2. CI 使用 Windows 与 macOS runner 和 .NET 10。
 3. 本地运行脚本并确认成功。
 4. 提交：`ci: add deterministic verification pipeline`。
 
@@ -61,7 +60,7 @@ Steps:
 1. 写合法 Unicode、路径分隔符规范化测试。
 2. 写绝对路径、UNC、盘符、空段和 `..` 失败测试。
 3. 运行测试，预期因类型不存在而失败。
-4. 实现最小解析逻辑和 Windows 大小写等价比较器。
+4. 实现最小解析逻辑、固定大小写折叠和 Unicode 规范化碰撞检测。
 5. 运行定向和完整测试，预期通过。
 6. 提交：`feat: add safe relative path model`。
 
@@ -93,7 +92,7 @@ Steps:
 Steps:
 
 1. 用 fake filesystem 写枚举、过滤、取消测试。
-2. 用真实临时目录写重解析点拒绝和不可读文件测试。
+2. 用真实临时目录写符号链接/重解析点拒绝和不可读文件测试。
 3. 实现端口、适配器和扫描编排。
 4. 增加扫描前后元数据稳定性检查。
 5. 运行测试并提交：`feat: scan stable snapshot inventories`。
@@ -118,7 +117,7 @@ Steps:
 - Create: `src/VaultDelta.Infrastructure/Presets/obsidian-default-v1.json`
 - Test: `tests/VaultDelta.Domain.Tests/Rules/`
 
-测试 include/exclude 优先级、规则解析失败和实际生效统计。提交：`feat: add snapshot filtering rules`。
+测试 include/exclude 优先级、规则解析失败和实际生效统计；固定 `.obsidian/plugins/**`、`.obsidian/themes/**` 默认包含，`.trash/**` 默认排除。提交：`feat: add snapshot filtering rules`。
 
 ### Task 8：实现 Diff Engine
 
@@ -173,7 +172,7 @@ Steps:
 - Create: `src/VaultDelta.Application/Patches/PackageInspector.cs`
 - Test: corrupted package matrix
 
-测试 ZIP 截断、重复路径、Zip Slip、清单外文件和载荷损坏。提交：`feat: inspect and archive patch packages`。
+默认生成 ZIP，目录 writer 作为高级/调试选项。测试 ZIP 截断、重复路径、Zip Slip、清单外文件和载荷损坏。提交：`feat: inspect and archive patch packages`。
 
 ### Phase Gate P3
 
@@ -236,53 +235,106 @@ Steps:
 - 性质测试 Apply 后 Rollback 恢复 A。
 - 每个故障注入点均不造成不可恢复的数据丢失。
 
-## Phase 5：CLI
+## Phase 5：跨平台文件系统验证
 
-### Task 17：实现 compare/build/inspect
+### Task 17：实现平台能力探测与适配
 
 **Files:**
 
-- Create: `src/VaultDelta.Cli/Commands/`
-- Test: CLI invocation tests
+- Create: `src/VaultDelta.Infrastructure/Platform/PlatformCapabilities.cs`
+- Create: `src/VaultDelta.Infrastructure/Platform/WindowsFileSystemSemantics.cs`
+- Create: `src/VaultDelta.Infrastructure/Platform/MacOsFileSystemSemantics.cs`
+- Test: `tests/VaultDelta.Infrastructure.Tests/Platform/`
 
-添加参数校验、JSON 输出和退出码。提交：`feat: add patch generation cli`。
+Steps:
 
-### Task 18：实现 apply/rollback
+1. 写大小写敏感/不敏感卷、NFC/NFD、权限和链接识别测试。
+2. 写同卷临时文件、原子替换和不支持能力时阻断的测试。
+3. 实现平台能力接口与 Windows/macOS 适配器。
+4. 在真实 Windows 与 macOS runner 执行集成测试。
+5. 提交：`feat: validate cross-platform filesystem capabilities`。
 
-默认交互确认；`--yes` 只跳过确认，不跳过任何 Gate。提交：`feat: add safe patch application cli`。
+### Phase Gate P5
+
+- 同一 fixture 在 Windows 与 macOS 生成相同 DiffSet 和 manifest operations。
+- 平台不支持的路径、链接或卷能力在任何写入前阻断。
+- Windows 生成的补丁可在 macOS 检查，macOS 生成的补丁可在 Windows 检查。
 
 ## Phase 6：Desktop UI
 
-### Task 19：应用壳与导航
+### Task 18：应用壳与导航
 
 实现比较、补丁历史/检查、设置三个页面，与已确认预览保持一致。提交：`feat: add desktop application shell`。
 
-### Task 20：比较和审核页面
+### Task 19：比较和审核页面
 
 实现目录选择、进度、取消、筛选、风险项与传输估算。提交：`feat: add interactive diff review`。
 
-### Task 21：生成、应用与恢复体验
+### Task 20：生成、应用与恢复体验
 
 实现 Gate 状态、冲突列表、备份信息、失败恢复和结果摘要。提交：`feat: expose transactional patch workflows`。
 
-## Phase 7：发布验证
+## Phase 7：跨平台发布验证
 
-### Task 22：固定 fixture 和 E2E 套件
+### Task 21：固定 fixture 和 E2E 套件
 
 覆盖 Markdown、Canvas、Excalidraw、附件和 `.obsidian`。提交：`test: add obsidian vault end-to-end fixtures`。
 
-### Task 23：性能与长路径验证
+### Task 22：性能与路径验证
 
-新增合成数据生成器和性能基线报告。提交：`test: establish large vault performance baseline`。
+新增合成数据生成器和性能基线报告，覆盖 Windows 长路径、macOS Unicode 规范化、大小写卷与外接卷。提交：`test: establish large vault performance baseline`。
 
-### Task 24：打包和用户文档
+### Task 23：Windows 发布包
 
-创建 Windows x64 self-contained 包、快速入门、恢复指南和校验和。提交：`docs: prepare mvp release package`。
+**Files:**
+
+- Create: `scripts/publish-windows.ps1`
+- Create: `docs/user-guide/windows-installation.md`
+
+发布 `win-x64` self-contained 产物，完成 Windows 10/11 安装、拖放、应用和回滚演练。提交：`build: package windows desktop release`。
+
+### Task 24：macOS 应用包与双架构发布
+
+**Files:**
+
+- Create: `packaging/macos/Info.plist`
+- Create: `scripts/publish-macos.sh`
+- Create: `docs/user-guide/macos-installation.md`
+
+Steps:
+
+1. 分别执行 `dotnet publish -r osx-arm64 --self-contained true` 与 `dotnet publish -r osx-x64 --self-contained true`。
+2. 将每个发布目录封装为正确结构的 `Vault Delta.app`，校验 executable、bundle identifier、图标和版本字段。
+3. 在 macOS runner 运行包结构与启动 smoke test。
+4. 在真实 Apple Silicon Mac 完成文件选择、拖放、生成、应用和回滚验收。
+5. 提交：`build: package macos desktop releases`。
+
+### Task 25：macOS 签名、公证与 DMG
+
+**Files:**
+
+- Create: `scripts/sign-and-notarize-macos.sh`
+- Modify: `.github/workflows/release.yml`
+- Create: `docs/release/macos-signing.md`
+
+Steps:
+
+1. 在 CI secret 中配置 Developer ID 与公证凭据，不写入仓库。
+2. 对 `.app` 启用 hardened runtime 并签名，使用 `codesign --verify --deep --strict` 验证。
+3. 提交公证并执行 `stapler validate` 与 `spctl --assess`。
+4. 生成 `.dmg`、校验和与发布说明。
+5. 若证书或公证失败，发布 Gate 必须失败。
+6. 提交：`build: sign and notarize macos releases`。
+
+### Task 26：用户文档与发布候选验收
+
+更新快速入门、补丁传输、冲突处理、恢复指南和平台限制。对 `win-x64`、`osx-arm64`、`osx-x64` 记录版本、哈希和验收结果。提交：`docs: prepare cross-platform mvp release`。
 
 ## MVP 完成定义
 
-- Phase Gate P2、P3、P4 全部通过。
-- CLI 与 Desktop 使用同一核心工作流。
-- Windows 10/11 上完成真实副本库的生成、传输、应用和回滚演练。
+- Phase Gate P2、P3、P4、P5 全部通过。
+- Desktop 只通过 Application 服务执行核心工作流，Domain/Application 不引用 Avalonia。
+- Windows 10/11 和真实 Apple Silicon Mac 上完成真实副本库的生成、传输、应用和回滚演练。
+- `win-x64`、`osx-arm64`、`osx-x64` 发布物构建成功；对外 macOS 包完成签名与公证。
 - 未解决的高危或数据丢失缺陷为零。
 - manifest v1、用户指南和恢复指南与实现一致。

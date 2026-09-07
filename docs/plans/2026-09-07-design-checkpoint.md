@@ -7,22 +7,29 @@
 - 需要同时覆盖新增、修改、删除和重命名。
 - 应用目标库时必须可验证和可恢复。
 - 当前项目路径为 `D:\Vault\_Delta`。
+- `.obsidian/plugins/**` 默认参与补丁。
+- `.trash/**` 默认排除。
+- ZIP 默认输出，目录包作为高级/调试选项。
+- MVP 不开发公开 CLI。
+- 正式支持 Windows 和 macOS。
 
 ## 当前默认决策
 
-- Windows 优先，.NET 8 + Avalonia。
+- C#、.NET 10 LTS + Avalonia。
 - 模块化单体，核心逻辑与 UI 解耦。
 - SHA-256 是正式一致性依据。
 - 声明式 JSON manifest，不生成任意执行脚本。
 - 精确应用默认因任何受影响路径冲突而停止。
-- v1 不跟随符号链接和 Windows 重解析点。
+- v1 不跟随符号链接、Windows 重解析点或其他特殊文件系统条目。
+- macOS 发布 `osx-arm64` 与 `osx-x64`。
+- macOS 的 Metal 渲染由 Avalonia 后端提供，不维护独立“Metal 版”。
 
-## 下阶段开始前建议确认
+## 发布前仍需确认
 
-1. `.obsidian/plugins/**` 是否默认参与补丁。
-2. `.trash/**` 是否默认排除。
-3. 是否要求绿色免安装单文件发布。
-4. 是否需要 CLI 作为首个可用版本，还是直接桌面 UI。
-5. 是否存在必须支持的 Windows 最低版本。
+1. 必须支持的 Windows 最低版本。
+2. 必须支持的 macOS 最低版本。
+3. 是否已有 Apple Developer Program 账号及 Developer ID 证书。
+4. 是否要求 Windows 绿色免安装包之外再提供安装器。
+5. 是否需要在 MVP 后补充 Windows ARM64。
 
 这些选择不会改变核心安全模型，但会影响 UI 优先级和发布包装。

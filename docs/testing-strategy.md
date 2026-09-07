@@ -13,12 +13,14 @@
 ### 路径
 
 - 中文、Emoji、空格、组合 Unicode。
+- NFC/NFD Unicode 规范化等价与冲突。
 - 深层目录和超过 260 字符路径。
 - 大小写碰撞。
 - `..`、绝对路径、UNC、盘符。
 - Windows 保留名称。
 - 文件/目录同名类型变化。
-- 符号链接、junction 和其他重解析点。
+- 符号链接、Finder alias（若可识别）、junction 和其他特殊文件系统条目。
+- Windows 不区分大小写卷、macOS 大小写敏感与不敏感卷。
 
 ### 差异
 
@@ -34,7 +36,8 @@
 
 - include/exclude 优先级。
 - Obsidian workspace 文件默认排除。
-- 插件与主题包含策略。
+- `.obsidian/plugins/**` 与 `.obsidian/themes/**` 默认包含。
+- `.trash/**` 默认排除。
 - 两次扫描规则不一致时阻断。
 
 ### 打包
@@ -44,6 +47,7 @@
 - 输出空间不足。
 - 复制期间源文件变化。
 - ZIP 截断、重复项、清单外载荷。
+- 同一补丁在 Windows 与 macOS 间交叉生成/检查/应用。
 
 ### 应用
 
@@ -55,6 +59,7 @@
 - 应用中空间耗尽。
 - 进程在任意 operation 后崩溃。
 - Apply 重复执行。
+- macOS 外接卷、权限不足和不支持原子替换的卷。
 
 ### 回滚
 
@@ -106,5 +111,9 @@ Release 候选必须满足：
 - 所有单元、集成和 E2E 测试通过。
 - 无高危路径逃逸或数据丢失缺陷。
 - Windows 10/11 各完成一次手工验收。
+- `osx-arm64` 与 `osx-x64` 均完成 publish 和 `.app` 结构验证。
+- 至少在真实 Apple Silicon Mac 上完成一次生成、应用、回滚和拖放交互验收。
+- Intel 版本至少完成 macOS CI 构建与包检查；正式发布前优先在 Intel Mac 或受控兼容环境完成启动验收。
+- 面向外部分发的 macOS 候选通过 Developer ID 签名、hardened runtime、公证和 Gatekeeper 验证。
 - 使用真实副本库演练生成、应用和回滚。
 - 文档中的 manifest schema 与实现测试样例一致。
