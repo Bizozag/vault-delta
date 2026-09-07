@@ -87,6 +87,8 @@ public sealed class SnapshotScannerTests
 
         Assert.Equal("Notes/keep.md", Assert.Single(inventory.Entries).Path.Value);
         Assert.Equal(1, hasher.CallCount);
+        Assert.False(fileSystem.ShouldDescend!(".trash"));
+        Assert.True(fileSystem.ShouldDescend("Notes"));
     }
 
     private static SnapshotRuleSet EmptyRules() => SnapshotRuleSet.Create("rules-v1", []);
@@ -115,12 +117,16 @@ public sealed class SnapshotScannerTests
 
         public int MetadataReadCount { get; private set; }
 
+        public Func<string, bool>? ShouldDescend { get; private set; }
+
         public bool DirectoryExists(string path) => true;
 
         public async IAsyncEnumerable<FileSystemEntryMetadata> EnumerateEntriesAsync(
             string rootPath,
+            Func<string, bool>? shouldDescend = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            ShouldDescend = shouldDescend;
             foreach (FileSystemEntryMetadata entry in entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();

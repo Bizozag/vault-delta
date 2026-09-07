@@ -9,6 +9,7 @@ public sealed class LocalFileSystem : IFileSystem
 
     public async IAsyncEnumerable<FileSystemEntryMetadata> EnumerateEntriesAsync(
         string rootPath,
+        Func<string, bool>? shouldDescend = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
@@ -28,7 +29,9 @@ public sealed class LocalFileSystem : IFileSystem
                 FileSystemEntryMetadata metadata = ReadMetadata(canonicalRoot, entryPath);
                 yield return metadata;
 
-                if (metadata.Type == FileSystemEntryType.Directory && !metadata.IsLink)
+                if (metadata.Type == FileSystemEntryType.Directory
+                    && !metadata.IsLink
+                    && (shouldDescend is null || shouldDescend(metadata.RelativePath)))
                 {
                     pendingDirectories.Push(entryPath);
                 }

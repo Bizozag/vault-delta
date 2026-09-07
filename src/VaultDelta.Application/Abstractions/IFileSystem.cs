@@ -6,6 +6,7 @@ public interface IFileSystem
 
     IAsyncEnumerable<FileSystemEntryMetadata> EnumerateEntriesAsync(
         string rootPath,
+        Func<string, bool>? shouldDescend = null,
         CancellationToken cancellationToken = default);
 
     ValueTask<FileSystemEntryMetadata> GetEntryMetadataAsync(

@@ -28,7 +28,7 @@ public sealed class LocalFileSystemTests : IDisposable
 
         List<FileSystemEntryMetadata> entries = [];
         await foreach (FileSystemEntryMetadata entry in
-            fileSystem.EnumerateEntriesAsync(_root, CancellationToken.None))
+            fileSystem.EnumerateEntriesAsync(_root, cancellationToken: CancellationToken.None))
         {
             entries.Add(entry);
         }

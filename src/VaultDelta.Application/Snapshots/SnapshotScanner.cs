@@ -28,7 +28,12 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
         try
         {
             await foreach (FileSystemEntryMetadata metadata in
-                _fileSystem.EnumerateEntriesAsync(rootPath, cancellationToken).ConfigureAwait(false))
+                _fileSystem
+                    .EnumerateEntriesAsync(
+                        rootPath,
+                        relativePath => rules.Evaluate(RelativePath.Parse(relativePath)).IsIncluded,
+                        cancellationToken)
+                    .ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
