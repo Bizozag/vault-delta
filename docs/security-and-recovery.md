@@ -13,7 +13,7 @@
 | 链接跳出目标根 | 默认拒绝符号链接、目录联接点、重解析点及其他特殊条目，不跟随链接 |
 | 补丁载荷被修改 | Apply 前逐文件 SHA-256 |
 | 目标库存在新修改 | 基线哈希冲突，默认阻断 |
-| 应用中断导致半更新 | 先备份、逐步 Journal、自动回滚 |
+| 应用中断导致半更新 | 先记录可恢复位置、逐步 Journal、显式恢复或回滚 |
 | 磁盘耗尽 | 修改前进行空间预算和测试写 |
 | 文件被 Obsidian/杀毒软件占用 | 预检可读写性；操作失败进入回滚 |
 | 恶意脚本 | Apply 只解释声明式 manifest，不执行包内脚本 |
@@ -32,16 +32,16 @@
 ## 4. 备份布局
 
 ```text
-<vault-parent>/.vaultdelta-backups/
+<transaction-root>/
   <operationId>/
     journal.json
-    replaced/
-    deleted/
-    displaced/
-    logs/
+    backup/
+      replaced/
+      deleted/
+      deleted-directories/
 ```
 
-默认放在目标库父目录，避免 Obsidian 索引备份内容。若用户指定其他位置，必须验证在本地可写文件系统且空间足够。
+事务根由上层工作流指定，界面默认应放在目标库之外，避免 Obsidian 索引备份内容。若用户指定其他位置，必须验证在本地可写文件系统且空间足够。
 
 macOS 外接卷可能使用 APFS、HFS+、exFAT 或网络文件系统，原子替换、大小写和权限语义并不完全一致。Apply 必须按实际卷探测能力，备份与临时文件默认放在目标同卷；无法满足安全写入不变量时阻断，而不是降级为直接覆盖。
 
@@ -70,6 +70,10 @@ MVP 分类：
 ## 7. 回滚承诺
 
 只要备份区和 Journal 完整，Rollback 应可多次运行并最终收敛。回滚不得依赖补丁包仍然存在。
+
+Journal 在目标变更之前先记录确定性的备份位置。恢复时同时读取 Journal 状态和目标当前状态，因此即使进程中断在“文件已移动、状态尚未再次落盘”的窗口，也能区分未执行、已执行和异常状态。Rollback 按操作序号逆序执行；单个逆向动作完成后立即验证并持久化 `RolledBack`。
+
+Apply 遇到已捕获的执行错误时将 Journal 标记为 `NeedsRollback`，保留备份并停止后续操作；不会在错误处理路径中静默自动回滚。进程被强制终止时，`Prepared`、`Applying` 或 `Verifying` Journal 同样可以直接进入恢复流程。
 
 如果备份损坏：
 
