@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+TestResults/
+coverage/
+*.user
+*.suo
+
+# IDE
+.vs/
+.idea/
+.vscode/
+
+# Build and packaging
+artifacts/
+publish/
+dist/
+*.nupkg
+
+# Local test fixtures and generated patches
+.local/
+tmp/
+*.vaultdelta
+*.vaultdelta.zip
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log
