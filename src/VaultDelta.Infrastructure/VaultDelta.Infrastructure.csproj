@@ -5,6 +5,10 @@
     <ProjectReference Include="..\VaultDelta.Domain\VaultDelta.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Presets\obsidian-default-v1.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

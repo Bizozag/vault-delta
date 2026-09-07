@@ -1,5 +1,6 @@
 using VaultDelta.Application.Abstractions;
 using VaultDelta.Domain.Paths;
+using VaultDelta.Domain.Rules;
 using VaultDelta.Domain.Snapshots;
 
 namespace VaultDelta.Application.Snapshots;
@@ -11,11 +12,11 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
 
     public async ValueTask<SnapshotInventory> ScanAsync(
         string rootPath,
-        string rulesId,
+        SnapshotRuleSet rules,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(rulesId);
+        ArgumentNullException.ThrowIfNull(rules);
 
         if (!_fileSystem.DirectoryExists(rootPath))
         {
@@ -32,6 +33,11 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
                 cancellationToken.ThrowIfCancellationRequested();
 
                 RelativePath relativePath = RelativePath.Parse(metadata.RelativePath);
+                if (!rules.Evaluate(relativePath).IsIncluded)
+                {
+                    continue;
+                }
+
                 if (metadata.IsLink)
                 {
                     throw new SnapshotScanException($"Links and special filesystem entries are not supported: {relativePath}");
@@ -88,7 +94,7 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
             throw new SnapshotScanException("The snapshot could not be read safely.", exception);
         }
 
-        return SnapshotInventory.Create(rulesId, entries);
+        return SnapshotInventory.Create(rules.RulesId, entries);
     }
 
     private static bool IsStable(FileSystemEntryMetadata before, FileSystemEntryMetadata after) =>

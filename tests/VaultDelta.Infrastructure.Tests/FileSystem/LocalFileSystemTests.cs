@@ -1,5 +1,6 @@
 using VaultDelta.Application.Abstractions;
 using VaultDelta.Application.Snapshots;
+using VaultDelta.Domain.Rules;
 using VaultDelta.Infrastructure.FileSystem;
 using VaultDelta.Infrastructure.Hashing;
 
@@ -48,7 +49,10 @@ public sealed class LocalFileSystemTests : IDisposable
         await File.WriteAllTextAsync(notePath, "content", CancellationToken.None);
         SnapshotScanner scanner = new(new LocalFileSystem(), new Sha256ContentHasher());
 
-        var inventory = await scanner.ScanAsync(_root, "rules-v1", CancellationToken.None);
+        var inventory = await scanner.ScanAsync(
+            _root,
+            SnapshotRuleSet.Create("rules-v1", []),
+            CancellationToken.None);
 
         var note = Assert.Single(inventory.Entries, entry => entry.Path.Value == "Notes/咖啡.md");
         Assert.Equal(7, note.Fingerprint!.Length);

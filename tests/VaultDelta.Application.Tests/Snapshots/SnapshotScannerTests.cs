@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using VaultDelta.Application.Abstractions;
 using VaultDelta.Application.Snapshots;
+using VaultDelta.Domain.Rules;
 
 namespace VaultDelta.Application.Tests.Snapshots;
 
@@ -17,7 +18,7 @@ public sealed class SnapshotScannerTests
             ]);
         SnapshotScanner scanner = new(fileSystem, new FakeHasher());
 
-        var inventory = await scanner.ScanAsync("/vault", "rules-v1", CancellationToken.None);
+        var inventory = await scanner.ScanAsync("/vault", EmptyRules(), CancellationToken.None);
 
         Assert.Equal(["Folder", "Folder/A.md", "Z.md"], inventory.Entries.Select(entry => entry.Path.Value));
         Assert.Equal(2, fileSystem.MetadataReadCount);
@@ -32,7 +33,7 @@ public sealed class SnapshotScannerTests
         FakeHasher hasher = new();
         SnapshotScanner scanner = new(fileSystem, hasher);
 
-        var inventory = await scanner.ScanAsync("/vault", "rules-v1", CancellationToken.None);
+        var inventory = await scanner.ScanAsync("/vault", EmptyRules(), CancellationToken.None);
 
         Assert.Equal(2, hasher.CallCount);
         Assert.Equal(4, inventory.Entries.Single().Fingerprint!.Length);
@@ -47,7 +48,7 @@ public sealed class SnapshotScannerTests
         SnapshotScanner scanner = new(fileSystem, new FakeHasher());
 
         await Assert.ThrowsAsync<SnapshotScanException>(async () =>
-            await scanner.ScanAsync("/vault", "rules-v1", CancellationToken.None));
+            await scanner.ScanAsync("/vault", EmptyRules(), CancellationToken.None));
     }
 
     [Fact]
@@ -58,7 +59,7 @@ public sealed class SnapshotScannerTests
         SnapshotScanner scanner = new(fileSystem, hasher);
 
         await Assert.ThrowsAsync<SnapshotScanException>(async () =>
-            await scanner.ScanAsync("/vault", "rules-v1", CancellationToken.None));
+            await scanner.ScanAsync("/vault", EmptyRules(), CancellationToken.None));
 
         Assert.Equal(0, hasher.CallCount);
     }
@@ -72,8 +73,23 @@ public sealed class SnapshotScannerTests
         await cancellation.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await scanner.ScanAsync("/vault", "rules-v1", cancellation.Token));
+            await scanner.ScanAsync("/vault", EmptyRules(), cancellation.Token));
     }
+
+    [Fact]
+    public async Task ScanAsync_skips_excluded_files_before_hashing()
+    {
+        FakeFileSystem fileSystem = new([File(".trash/deleted.md", 3), File("Notes/keep.md", 4)]);
+        FakeHasher hasher = new();
+        SnapshotScanner scanner = new(fileSystem, hasher);
+
+        var inventory = await scanner.ScanAsync("/vault", ObsidianDefaultRules.Create(), CancellationToken.None);
+
+        Assert.Equal("Notes/keep.md", Assert.Single(inventory.Entries).Path.Value);
+        Assert.Equal(1, hasher.CallCount);
+    }
+
+    private static SnapshotRuleSet EmptyRules() => SnapshotRuleSet.Create("rules-v1", []);
 
     private static FileSystemEntryMetadata File(string path, long length) =>
         new($"/vault/{path}", path, FileSystemEntryType.File, length, DateTimeOffset.UnixEpoch, false);
