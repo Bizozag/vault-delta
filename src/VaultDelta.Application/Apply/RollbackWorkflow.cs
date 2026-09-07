@@ -11,12 +11,14 @@ public sealed class RollbackWorkflow(
     IApplyLockManager lockManager,
     IApplyFileOperations fileOperations,
     ITargetStateReader targetStateReader,
+    IApplyCapabilityValidator capabilityValidator,
     IApplyFaultInjector? faultInjector = null)
 {
     private readonly IApplyJournalStore _journalStore = journalStore ?? throw new ArgumentNullException(nameof(journalStore));
     private readonly IApplyLockManager _lockManager = lockManager ?? throw new ArgumentNullException(nameof(lockManager));
     private readonly IApplyFileOperations _fileOperations = fileOperations ?? throw new ArgumentNullException(nameof(fileOperations));
     private readonly ITargetStateReader _targetStateReader = targetStateReader ?? throw new ArgumentNullException(nameof(targetStateReader));
+    private readonly IApplyCapabilityValidator _capabilityValidator = capabilityValidator ?? throw new ArgumentNullException(nameof(capabilityValidator));
     private readonly IApplyFaultInjector _faultInjector = faultInjector ?? NoOpApplyFaultInjector.Instance;
 
     public async ValueTask<RollbackResult> RollbackAsync(
@@ -40,6 +42,12 @@ public sealed class RollbackWorkflow(
         {
             throw new InvalidOperationException($"Journal status {journal.Status} cannot be rolled back.");
         }
+
+        string operationRoot = Path.GetDirectoryName(Path.GetFullPath(journalPath))
+            ?? throw new InvalidDataException("Journal path has no parent directory.");
+        await _capabilityValidator
+            .ValidateAsync(journal.TargetRoot, operationRoot, cancellationToken)
+            .ConfigureAwait(false);
 
         await using IAsyncDisposable targetLock = await _lockManager
             .AcquireAsync(journal.TargetRoot, journal.OperationId, cancellationToken)

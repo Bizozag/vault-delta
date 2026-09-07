@@ -17,6 +17,7 @@ public sealed class ApplyWorkflow(
     IAtomicFileWriter atomicFileWriter,
     IApplyFileOperations fileOperations,
     ITargetStateReader targetStateReader,
+    IApplyCapabilityValidator capabilityValidator,
     IApplyFaultInjector? faultInjector = null)
 {
     private readonly PackageInspector _packageInspector = packageInspector ?? throw new ArgumentNullException(nameof(packageInspector));
@@ -28,6 +29,7 @@ public sealed class ApplyWorkflow(
     private readonly IAtomicFileWriter _atomicFileWriter = atomicFileWriter ?? throw new ArgumentNullException(nameof(atomicFileWriter));
     private readonly IApplyFileOperations _fileOperations = fileOperations ?? throw new ArgumentNullException(nameof(fileOperations));
     private readonly ITargetStateReader _targetStateReader = targetStateReader ?? throw new ArgumentNullException(nameof(targetStateReader));
+    private readonly IApplyCapabilityValidator _capabilityValidator = capabilityValidator ?? throw new ArgumentNullException(nameof(capabilityValidator));
     private readonly IApplyFaultInjector _faultInjector = faultInjector ?? NoOpApplyFaultInjector.Instance;
 
     public async ValueTask<ApplyResult> ApplyAsync(
@@ -49,6 +51,10 @@ public sealed class ApplyWorkflow(
         {
             return new ApplyResult(null, baseline, null, null);
         }
+
+        await _capabilityValidator
+            .ValidateAsync(request.TargetRoot, request.TransactionRoot, cancellationToken)
+            .ConfigureAwait(false);
 
         string operationId = request.OperationId ?? Guid.NewGuid().ToString("N");
         ApplyTransactionPaths transaction = _fileOperations.CreateTransactionPaths(request.TransactionRoot, operationId);

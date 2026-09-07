@@ -1,3 +1,4 @@
+using VaultDelta.Application.Abstractions;
 using VaultDelta.Application.Apply;
 using VaultDelta.Application.Patches;
 using VaultDelta.Domain.Apply;
@@ -8,6 +9,7 @@ using VaultDelta.Infrastructure.Apply;
 using VaultDelta.Infrastructure.FileSystem;
 using VaultDelta.Infrastructure.Hashing;
 using VaultDelta.Infrastructure.Patches;
+using VaultDelta.Infrastructure.Platform;
 
 namespace VaultDelta.EndToEnd.Tests.Apply;
 
@@ -184,7 +186,8 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
             new BackupStore(_hasher),
             new AtomicFileWriter(_hasher),
             new LocalApplyFileOperations(),
-            stateReader);
+            stateReader,
+            new PlatformCapabilityProbe());
 
         ApplyResult result = await workflow.ApplyAsync(
             new ApplyRequest(zip, vault, Path.Combine(_root, "zip-transactions"), "zip"),
@@ -227,7 +230,37 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         Assert.Equal("after", await File.ReadAllTextAsync(Path.Combine(vault, "note.md"), CancellationToken.None));
     }
 
-    private ApplyWorkflow CreateApplyWorkflow(IApplyFaultInjector? faultInjector = null)
+    [Fact]
+    public async Task Unsupported_filesystem_capability_blocks_before_lock_journal_or_target_write()
+    {
+        string vault = Path.Combine(_root, "unsupported-vault");
+        string source = Path.Combine(_root, "unsupported-source");
+        string package = Path.Combine(_root, "unsupported-package");
+        string transactions = Path.Combine(_root, "unsupported-transactions");
+        Directory.CreateDirectory(vault);
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "note.md"), "new", CancellationToken.None);
+        PatchManifest manifest = Manifest(
+            "unsupported-patch",
+            PatchOperation.Add(
+                10,
+                RelativePath.Parse("note.md"),
+                await FingerprintAsync(Path.Combine(source, "note.md"))));
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+
+        ApplyWorkflow workflow = CreateApplyWorkflow(capabilityValidator: new RejectingCapabilityValidator());
+
+        await Assert.ThrowsAsync<PlatformNotSupportedException>(async () =>
+            await workflow.ApplyAsync(
+                new ApplyRequest(package, vault, transactions, "unsupported"),
+                CancellationToken.None));
+        Assert.Empty(Directory.GetFileSystemEntries(vault));
+        Assert.False(Directory.Exists(transactions));
+    }
+
+    private ApplyWorkflow CreateApplyWorkflow(
+        IApplyFaultInjector? faultInjector = null,
+        IApplyCapabilityValidator? capabilityValidator = null)
     {
         LocalTargetStateReader stateReader = new(_hasher);
         return new ApplyWorkflow(
@@ -240,6 +273,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
             new AtomicFileWriter(_hasher),
             new LocalApplyFileOperations(),
             stateReader,
+            capabilityValidator ?? new PlatformCapabilityProbe(),
             faultInjector);
     }
 
@@ -249,6 +283,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
             new TargetLockManager(),
             new LocalApplyFileOperations(),
             new LocalTargetStateReader(_hasher),
+            new PlatformCapabilityProbe(),
             faultInjector);
 
     private async Task<PatchManifest> CreateManifestAsync(string vault, string source)
@@ -352,4 +387,13 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
     }
 
     private sealed class InjectedFailureException(string message) : Exception(message);
+
+    private sealed class RejectingCapabilityValidator : IApplyCapabilityValidator
+    {
+        public ValueTask ValidateAsync(
+            string targetRoot,
+            string transactionRoot,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromException(new PlatformNotSupportedException("Injected unsupported filesystem."));
+    }
 }
