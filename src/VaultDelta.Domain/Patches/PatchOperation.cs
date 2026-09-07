@@ -94,6 +94,41 @@ public sealed record PatchOperation
         RelativePath targetPath) =>
         new(sequence, PatchOperationType.Rename, SnapshotEntryKind.Directory, basePath, targetPath, null, null, null);
 
+    public static PatchOperation Restore(
+        int sequence,
+        PatchOperationType type,
+        SnapshotEntryKind entryKind,
+        RelativePath? basePath,
+        RelativePath? targetPath,
+        RelativePath? payloadPath,
+        FileFingerprint? oldFingerprint,
+        FileFingerprint? newFingerprint)
+    {
+        PatchOperation restored = (type, entryKind) switch
+        {
+            (PatchOperationType.Add, SnapshotEntryKind.File) => Add(sequence, Require(targetPath), Require(newFingerprint)),
+            (PatchOperationType.Modify, SnapshotEntryKind.File) => Modify(sequence, Require(targetPath), Require(oldFingerprint), Require(newFingerprint)),
+            (PatchOperationType.Delete, SnapshotEntryKind.File) => Delete(sequence, Require(basePath), Require(oldFingerprint)),
+            (PatchOperationType.Rename, SnapshotEntryKind.File) => Rename(sequence, Require(basePath), Require(targetPath), Require(newFingerprint)),
+            (PatchOperationType.Add, SnapshotEntryKind.Directory) => AddDirectory(sequence, Require(targetPath)),
+            (PatchOperationType.Delete, SnapshotEntryKind.Directory) => DeleteDirectory(sequence, Require(basePath)),
+            (PatchOperationType.Rename, SnapshotEntryKind.Directory) => RenameDirectory(sequence, Require(basePath), Require(targetPath)),
+            _ => throw new ArgumentException($"Unsupported operation combination: {type}/{entryKind}."),
+        };
+
+        if (restored.PayloadPath != payloadPath
+            || restored.OldFingerprint != oldFingerprint
+            || restored.NewFingerprint != newFingerprint)
+        {
+            throw new ArgumentException("Restored operation fields are inconsistent with its type and entry kind.");
+        }
+
+        return restored;
+    }
+
     private static RelativePath PayloadFor(RelativePath targetPath) =>
         RelativePath.Parse($"files/{targetPath.Value}");
+
+    private static T Require<T>(T? value) where T : class =>
+        value ?? throw new ArgumentException("The operation is missing a required value.");
 }
