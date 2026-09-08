@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    {"id":"note","type":"text","text":"Target","x":0,"y":0,"width":240,"height":120},
+    {"id":"file","type":"file","file":"Notes/Welcome.md","x":320,"y":0,"width":280,"height":180}
+  ],
+  "edges": [
+    {"id":"edge","fromNode":"note","toNode":"file"}
+  ]
+}

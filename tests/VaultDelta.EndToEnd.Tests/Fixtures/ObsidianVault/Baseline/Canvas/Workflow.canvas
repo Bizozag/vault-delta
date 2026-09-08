@@ -1,0 +1,6 @@
+{
+  "nodes": [
+    {"id":"note","type":"text","text":"Baseline","x":0,"y":0,"width":240,"height":120}
+  ],
+  "edges": []
+}
