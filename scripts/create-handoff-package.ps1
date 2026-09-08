@@ -123,7 +123,7 @@ git clone git/VaultDelta.repository.bundle VaultDelta
             $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $relativePath"
         }
-    Set-Content -LiteralPath $checksumPath -Value $checksumLines -Encoding ascii
+    Set-Content -LiteralPath $checksumPath -Value $checksumLines -Encoding utf8NoBOM
 
     Compress-Archive -LiteralPath $packageDirectory -DestinationPath $archivePath -CompressionLevel Optimal
     $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
