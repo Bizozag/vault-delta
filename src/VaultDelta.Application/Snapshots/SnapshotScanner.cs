@@ -14,6 +14,13 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
         string rootPath,
         SnapshotRuleSet rules,
         CancellationToken cancellationToken = default)
+        => await ScanAsync(rootPath, rules, progress: null, cancellationToken).ConfigureAwait(false);
+
+    public async ValueTask<SnapshotInventory> ScanAsync(
+        string rootPath,
+        SnapshotRuleSet rules,
+        IProgress<SnapshotScanProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
         ArgumentNullException.ThrowIfNull(rules);
@@ -51,6 +58,7 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
                 if (metadata.Type == FileSystemEntryType.Directory)
                 {
                     entries.Add(new SnapshotEntry(relativePath, SnapshotEntryKind.Directory, null));
+                    progress?.Report(new SnapshotScanProgress(entries.Count, relativePath.Value));
                     continue;
                 }
 
@@ -84,6 +92,7 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
                         relativePath,
                         SnapshotEntryKind.File,
                         new FileFingerprint(after.Length, after.LastWriteTimeUtc, sha256)));
+                progress?.Report(new SnapshotScanProgress(entries.Count, relativePath.Value));
             }
         }
         catch (SnapshotScanException)

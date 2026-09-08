@@ -91,6 +91,23 @@ public sealed class SnapshotScannerTests
         Assert.True(fileSystem.ShouldDescend("Notes"));
     }
 
+    [Fact]
+    public async Task ScanAsync_reports_each_included_entry_after_it_is_complete()
+    {
+        FakeFileSystem fileSystem = new([Directory("Notes"), File("Notes/keep.md", 4)]);
+        SnapshotScanner scanner = new(fileSystem, new FakeHasher());
+        List<SnapshotScanProgress> reports = [];
+
+        await scanner.ScanAsync(
+            "/vault",
+            EmptyRules(),
+            new InlineProgress<SnapshotScanProgress>(reports.Add),
+            CancellationToken.None);
+
+        Assert.Equal([1, 2], reports.Select(report => report.ProcessedEntries));
+        Assert.Equal(["Notes", "Notes/keep.md"], reports.Select(report => report.CurrentPath));
+    }
+
     private static SnapshotRuleSet EmptyRules() => SnapshotRuleSet.Create("rules-v1", []);
 
     private static FileSystemEntryMetadata File(string path, long length) =>
@@ -147,5 +164,10 @@ public sealed class SnapshotScannerTests
                 : entries.Single(entry => entry.FullPath == fullPath);
             return ValueTask.FromResult(metadata);
         }
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }

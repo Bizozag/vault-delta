@@ -102,88 +102,146 @@
 
                 <Grid Grid.Row="1">
                     <ScrollViewer x:Name="ComparePage" IsVisible="{Binding IsCompareSelected}" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="34,30,34,42" Spacing="22">
-                            <Border Classes="card" Padding="26">
-                                <Grid ColumnDefinitions="*,210" ColumnSpacing="34">
-                                    <StackPanel Spacing="16">
-                                        <StackPanel Spacing="5">
+                        <StackPanel Margin="34,26,34,42" Spacing="18" DataContext="{Binding Compare}">
+                            <Border Classes="card" Padding="22">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="4">
                                             <TextBlock Text="COMPARE" Classes="eyebrow" />
-                                            <TextBlock Text="从两个快照开始" Classes="sectionTitle" FontSize="21" />
-                                            <TextBlock Text="旧快照是传输前的基线，新快照是你希望目标库达到的状态。扫描过程只读取文件，不会修改任一目录。"
-                                                       Classes="muted" MaxWidth="650" TextWrapping="Wrap" LineHeight="21" />
+                                            <TextBlock Text="选择两个独立快照" Classes="sectionTitle" FontSize="20" />
+                                            <TextBlock Text="扫描只读取文件。两个目录不能相同，也不能互相包含。" Classes="muted" FontSize="12" />
                                         </StackPanel>
+                                        <Border Grid.Column="1" Background="#EAF3F0" CornerRadius="16" Padding="12,6" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding StatusText}" Foreground="#075F52" FontSize="12" FontWeight="SemiBold" />
+                                        </Border>
+                                    </Grid>
 
-                                        <Grid ColumnDefinitions="*,18,*">
-                                            <Border Grid.Column="0" Padding="16" CornerRadius="10" Background="#F6F7F3" BorderBrush="#DBDED7" BorderThickness="1">
-                                                <StackPanel Spacing="7">
-                                                    <TextBlock Text="01  旧快照 / 基线" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
-                                                    <TextBlock Text="选择原始 Obsidian 文件夹" FontSize="14" FontWeight="SemiBold" />
-                                                    <TextBlock Text="尚未选择" Classes="muted" FontSize="12" />
-                                                </StackPanel>
-                                            </Border>
-                                            <TextBlock Grid.Column="1" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#88938F" />
-                                            <Border Grid.Column="2" Padding="16" CornerRadius="10" Background="#F6F7F3" BorderBrush="#DBDED7" BorderThickness="1">
-                                                <StackPanel Spacing="7">
-                                                    <TextBlock Text="02  新快照 / 目标" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
-                                                    <TextBlock Text="选择更新后的文件夹" FontSize="14" FontWeight="SemiBold" />
-                                                    <TextBlock Text="尚未选择" Classes="muted" FontSize="12" />
-                                                </StackPanel>
-                                            </Border>
-                                        </Grid>
+                                    <Grid ColumnDefinitions="*,26,*" ColumnSpacing="8">
+                                        <Border Grid.Column="0" Padding="14" CornerRadius="10" Background="#F7F8F4" BorderBrush="#DDE0DA" BorderThickness="1">
+                                            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                                                <TextBlock Text="01  旧快照 / 基线" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
+                                                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                    <TextBox Text="{Binding BaselinePath}" PlaceholderText="选择原始 Obsidian 文件夹" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                    <Button Grid.Column="1" x:Name="SelectBaselineButton" Content="选择…" Classes="secondary" Command="{Binding SelectBaselineCommand}" />
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#87928E" />
+                                        <Border Grid.Column="2" Padding="14" CornerRadius="10" Background="#F7F8F4" BorderBrush="#DDE0DA" BorderThickness="1">
+                                            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                                                <TextBlock Text="02  新快照 / 目标" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
+                                                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                    <TextBox Text="{Binding TargetPath}" PlaceholderText="选择更新后的 Obsidian 文件夹" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                    <Button Grid.Column="1" x:Name="SelectTargetButton" Content="选择…" Classes="secondary" Command="{Binding SelectTargetCommand}" />
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
 
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Button Content="选择两个文件夹" Classes="primary" IsEnabled="False" ToolTip.Tip="文件选择将在比较工作流阶段接入" />
-                                            <Button Content="了解比较规则" Classes="secondary" IsEnabled="False" />
-                                        </StackPanel>
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                                        <TextBlock Text="包含 .obsidian/plugins/** 与 themes/** · 排除 .trash/**" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" x:Name="CancelCompareButton" Content="取消" Classes="secondary" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
+                                        <Button Grid.Column="2" x:Name="StartCompareButton" Content="开始比较" Classes="primary" Command="{Binding CompareCommand}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="ScanningPanel" Classes="card" Padding="22" IsVisible="{Binding IsBusy}">
+                                <Grid ColumnDefinitions="*,220" ColumnSpacing="28">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="{Binding StatusText}" Classes="sectionTitle" />
+                                        <ProgressBar IsIndeterminate="True" Height="7" />
+                                        <TextBlock Text="{Binding CurrentPath}" Classes="muted" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock Text="已处理条目" Classes="muted" FontSize="11" />
+                                        <TextBlock Text="{Binding ProcessedEntries}" FontSize="28" FontWeight="SemiBold" Foreground="#087C6A" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
 
-                                    <Border Grid.Column="1" CornerRadius="12" Background="#142D28" Padding="20">
-                                        <StackPanel Spacing="15">
-                                            <TextBlock Text="补丁默认范围" FontSize="13" FontWeight="SemiBold" Foreground="#DCECE7" />
-                                            <StackPanel Spacing="10">
-                                                <Grid ColumnDefinitions="18,*">
-                                                    <TextBlock Text="+" FontWeight="Bold" Foreground="#49D5AA" />
-                                                    <TextBlock Grid.Column="1" Text="插件与主题" Foreground="#D2E1DD" />
-                                                </Grid>
-                                                <TextBlock Text=".obsidian/plugins/**&#x0a;.obsidian/themes/**" Margin="18,0,0,0"
-                                                           FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" Foreground="#8FA9A2" />
-                                                <Grid ColumnDefinitions="18,*">
-                                                    <TextBlock Text="−" FontWeight="Bold" Foreground="#F2B477" />
-                                                    <TextBlock Grid.Column="1" Text="回收站目录" Foreground="#D2E1DD" />
-                                                </Grid>
-                                                <TextBlock Text=".trash/**" Margin="18,0,0,0"
-                                                           FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" Foreground="#8FA9A2" />
-                                            </StackPanel>
-                                            <Border Height="1" Background="#315048" />
-                                            <TextBlock Text="输出格式  ZIP" FontSize="12" Foreground="#A9BDB7" />
+                            <Border x:Name="CompareErrorPanel" Classes="card" Padding="20" IsVisible="{Binding IsError}" BorderBrush="#E7BDA1">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="无法完成比较" FontWeight="SemiBold" Foreground="#934A24" />
+                                    <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Classes="muted" />
+                                    <TextBlock Text="已保留目录选择，可直接调整后重试。" Classes="muted" FontSize="11" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="CompareEmptyPanel" Classes="card" Padding="24" IsVisible="{Binding IsEmptyState}">
+                                <Grid ColumnDefinitions="*,240" ColumnSpacing="28">
+                                    <StackPanel Spacing="7">
+                                        <TextBlock Text="差异审核区" Classes="sectionTitle" />
+                                        <TextBlock Text="比较完成后，这里会列出新增、修改、删除和重命名。筛选只改变显示，不会改变底层差异结果。" Classes="muted" TextWrapping="Wrap" LineHeight="20" />
+                                        <TextBlock Text="生成补丁将在审核完成后的下一阶段开放。" Foreground="#087C6A" FontSize="12" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" CornerRadius="10" Background="#172D28" Padding="16">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="风险项会自动标记" Foreground="#E1EFEB" FontWeight="SemiBold" />
+                                            <TextBlock Text="删除 · 重命名&#x0a;Obsidian 配置&#x0a;同路径类型变化" Foreground="#94AAA4" FontSize="12" LineHeight="21" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>
                             </Border>
 
-                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
-                                <Border Grid.Column="0" Classes="card" Padding="18">
-                                    <StackPanel Spacing="7">
-                                        <TextBlock Text="1" FontSize="25" FontWeight="SemiBold" Foreground="#087C6A" />
-                                        <TextBlock Text="安全扫描" FontWeight="SemiBold" />
-                                        <TextBlock Text="拒绝链接与路径逃逸" Classes="muted" FontSize="12" />
+                            <StackPanel x:Name="CompareResultPanel" Spacing="14" IsVisible="{Binding HasResult}">
+                                <Grid ColumnDefinitions="*,*,*,*,1.35*,*" ColumnSpacing="10">
+                                    <Border Grid.Column="0" Classes="metric"><StackPanel><TextBlock Text="{Binding AddedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#087C6A"/><TextBlock Text="新增" Classes="muted" FontSize="11"/></StackPanel></Border>
+                                    <Border Grid.Column="1" Classes="metric"><StackPanel><TextBlock Text="{Binding ModifiedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#356A8A"/><TextBlock Text="修改" Classes="muted" FontSize="11"/></StackPanel></Border>
+                                    <Border Grid.Column="2" Classes="metric"><StackPanel><TextBlock Text="{Binding DeletedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#A45C23"/><TextBlock Text="删除" Classes="muted" FontSize="11"/></StackPanel></Border>
+                                    <Border Grid.Column="3" Classes="metric"><StackPanel><TextBlock Text="{Binding RenamedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#6A568F"/><TextBlock Text="重命名" Classes="muted" FontSize="11"/></StackPanel></Border>
+                                    <Border Grid.Column="4" Classes="metric"><StackPanel><TextBlock Text="{Binding TransferSizeText}" FontSize="15" FontWeight="SemiBold" Foreground="#17211F"/><TextBlock Text="预计传输" Classes="muted" FontSize="11"/></StackPanel></Border>
+                                    <Border Grid.Column="5" Classes="metric"><StackPanel><TextBlock Text="{Binding RiskCount}" FontSize="22" FontWeight="SemiBold" Foreground="#9A4D32"/><TextBlock Text="风险项" Classes="muted" FontSize="11"/></StackPanel></Border>
+                                </Grid>
+
+                                <Border Classes="card" Padding="18">
+                                    <StackPanel Spacing="13">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="审核变化" Classes="sectionTitle" />
+                                                <TextBlock Text="仅显示变化项；未变化条目仍保留在完整比较结果中。" Classes="muted" FontSize="11" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                                <Button Content="全部" Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="All" />
+                                                <Button Content="新增" Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Added" />
+                                                <Button Content="修改" Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Modified" />
+                                                <Button Content="删除" Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Deleted" />
+                                                <Button Content="重命名" Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Renamed" />
+                                                <Button Content="风险项" Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Risks" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Border IsVisible="{Binding HasNoChanges}" Padding="24" CornerRadius="10" Background="#EDF6F2">
+                                            <TextBlock Text="两个快照内容一致，无需生成补丁。" HorizontalAlignment="Center" Foreground="#075F52" FontWeight="SemiBold" />
+                                        </Border>
+
+                                        <ItemsControl ItemsSource="{Binding FilteredEntries}" IsVisible="{Binding HasChanges}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:DiffReviewItemViewModel">
+                                                    <Border Padding="12,10" Margin="0,0,0,7" CornerRadius="8" Background="#F8F8F5" BorderBrush="#E2E3DE" BorderThickness="1">
+                                                        <Grid ColumnDefinitions="82,*,Auto" ColumnSpacing="12">
+                                                            <Border Background="#E7F2EE" CornerRadius="12" Padding="9,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding TypeText}" FontSize="11" FontWeight="SemiBold" Foreground="#075F52" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                                <TextBlock Text="{Binding Path}" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding Detail}" IsVisible="{Binding HasDetail}" Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding RiskText}" IsVisible="{Binding HasRisk}" Foreground="#A45C23" FontSize="11" />
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding SizeText}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="下一步将把审核结果交给补丁生成 Gate。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" Content="生成补丁（Task 20）" Classes="primary" IsEnabled="False" ToolTip.Tip="补丁生成将在下一阶段接入" />
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
-                                <Border Grid.Column="1" Classes="card" Padding="18">
-                                    <StackPanel Spacing="7">
-                                        <TextBlock Text="2" FontSize="25" FontWeight="SemiBold" Foreground="#087C6A" />
-                                        <TextBlock Text="审核差异" FontWeight="SemiBold" />
-                                        <TextBlock Text="新增、修改、删除、重命名" Classes="muted" FontSize="12" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Grid.Column="2" Classes="card" Padding="18">
-                                    <StackPanel Spacing="7">
-                                        <TextBlock Text="3" FontSize="25" FontWeight="SemiBold" Foreground="#087C6A" />
-                                        <TextBlock Text="生成补丁" FontWeight="SemiBold" />
-                                        <TextBlock Text="验证完成后才发布 ZIP" Classes="muted" FontSize="12" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
 

@@ -70,5 +70,23 @@
         <Style Selector="TextBlock.muted">
             <Setter Property="Foreground" Value="#68736F" />
         </Style>
+        <Style Selector="Button.filter">
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Background" Value="#F4F5F1" />
+            <Setter Property="BorderBrush" Value="#DCE0DA" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.filter:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E8F3EF" />
+        </Style>
+        <Style Selector="Border.metric">
+            <Setter Property="Background" Value="#F7F8F4" />
+            <Setter Property="BorderBrush" Value="#E0E2DC" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14" />
+        </Style>
     </Application.Styles>
 </Application>

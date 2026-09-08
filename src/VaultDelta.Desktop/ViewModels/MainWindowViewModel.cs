@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using VaultDelta.Desktop.Services;
 
 namespace VaultDelta.Desktop.ViewModels;
 
@@ -9,13 +10,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private ShellPage _currentPage = ShellPage.Compare;
 
     public MainWindowViewModel()
+        : this(new PreviewFolderPicker(), new PreviewCompareService())
     {
+    }
+
+    public MainWindowViewModel(IFolderPicker folderPicker, ICompareService compareService)
+    {
+        Compare = new CompareWorkspaceViewModel(folderPicker, compareService);
         NavigateCommand = new RelayCommand(Navigate);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand NavigateCommand { get; }
+
+    public CompareWorkspaceViewModel Compare { get; }
 
     public ShellPage CurrentPage
     {
@@ -78,4 +87,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    private sealed class PreviewFolderPicker : IFolderPicker
+    {
+        public Task<string?> PickFolderAsync(string title, CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
+    }
+
+    private sealed class PreviewCompareService : ICompareService
+    {
+        public ValueTask<VaultDelta.Application.Compare.CompareResult> CompareAsync(
+            string baselinePath,
+            string targetPath,
+            IProgress<VaultDelta.Application.Compare.CompareProgress>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromException<VaultDelta.Application.Compare.CompareResult>(
+                new InvalidOperationException("Preview mode cannot compare folders."));
+    }
 }
