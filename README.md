@@ -6,7 +6,7 @@ MVP 面向 Windows 与 macOS，采用 C#、.NET 10 LTS 和 Avalonia。默认生�
 
 ## 当前状态
 
-项目处于设计与实施规划阶段，尚未包含可执行程序。
+核心 MVP 工作流、Avalonia 桌面界面、固定 Obsidian E2E fixture、性能基线以及 Windows/macOS 发布脚本已经实现。当前进入跨平台发布收尾阶段：Windows `win-x64` 候选包已完成本机验证；macOS `osx-arm64` 与 `osx-x64` 应用包和 CI 门禁已实现，仍需在 macOS runner/真实 Mac 上执行原生验收，并继续完成 Developer ID 签名、公证和 DMG。
 
 ## 核心目标
 
@@ -28,6 +28,8 @@ MVP 面向 Windows 与 macOS，采用 C#、.NET 10 LTS 和 Avalonia。默认生�
 - [安全与失败恢复](docs/security-and-recovery.md)
 - [测试策略](docs/testing-strategy.md)
 - [实施计划](docs/plans/2026-09-07-vault-delta-implementation.md)
+- [当前交接状态](docs/handoff/CURRENT_STATUS.md)
+- [跨平台继续工作指南](docs/handoff/CONTINUATION_GUIDE.md)
 - [架构决策记录](docs/adr/README.md)
 
 ## 设计原则
@@ -46,4 +48,8 @@ dotnet build --configuration Release
 dotnet test --configuration Release
 ```
 
-这些命令将在实施阶段创建解决方案后生效。
+完整本地门禁：
+
+```powershell
+./scripts/verify.ps1 -Configuration Release
+```
