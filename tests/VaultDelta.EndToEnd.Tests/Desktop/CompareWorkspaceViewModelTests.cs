@@ -4,6 +4,9 @@ using VaultDelta.Desktop.ViewModels;
 using VaultDelta.Domain.Diffs;
 using VaultDelta.Domain.Paths;
 using VaultDelta.Domain.Snapshots;
+using VaultDelta.Application.Apply;
+using VaultDelta.Application.Patches;
+using VaultDelta.Domain.Apply;
 
 namespace VaultDelta.EndToEnd.Tests.Desktop;
 
@@ -95,6 +98,30 @@ public sealed class CompareWorkspaceViewModelTests
         Assert.False(viewModel.HasResult);
     }
 
+    [Fact]
+    public async Task Completed_comparison_can_publish_a_zip_through_the_patch_workflow()
+    {
+        CompareResult result = CreateResult();
+        RecordingPatchWorkflow patchWorkflow = new();
+        using CompareWorkspaceViewModel viewModel = new(
+            new QueueFolderPicker(),
+            new ImmediateCompareService(result),
+            new SaveOnlyPicker("D:/out/delta.zip"),
+            patchWorkflow)
+        {
+            BaselinePath = "C:/baseline",
+            TargetPath = "C:/target",
+        };
+        await viewModel.CompareAsync();
+
+        await viewModel.BuildPatchAsync();
+
+        Assert.True(viewModel.IsPatchBuilt);
+        Assert.Equal("D:/out/delta.zip", viewModel.BuiltPatchPath);
+        Assert.Same(result, patchWorkflow.Comparison);
+        Assert.Equal("C:/target", patchWorkflow.SourceRoot);
+    }
+
     private static CompareWorkspaceViewModel ReadyViewModel(ICompareService service) =>
         new(new QueueFolderPicker(), service)
         {
@@ -157,5 +184,30 @@ public sealed class CompareWorkspaceViewModelTests
     {
         public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default) =>
             ValueTask.FromException<CompareResult>(exception);
+    }
+
+    private sealed class SaveOnlyPicker(string outputPath) : IPatchStoragePicker
+    {
+        public Task<string?> SavePatchAsync(string suggestedFileName, CancellationToken cancellationToken = default) => Task.FromResult<string?>(outputPath);
+        public Task<string?> OpenPatchAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> OpenJournalAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class RecordingPatchWorkflow : IPatchWorkflowService
+    {
+        public CompareResult? Comparison { get; private set; }
+        public string? SourceRoot { get; private set; }
+
+        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default)
+        {
+            Comparison = comparison;
+            SourceRoot = sourceRoot;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }

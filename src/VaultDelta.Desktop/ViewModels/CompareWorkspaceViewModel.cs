@@ -12,11 +12,14 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
 {
     private readonly IFolderPicker _folderPicker;
     private readonly ICompareService _compareService;
+    private readonly IPatchStoragePicker? _patchStoragePicker;
+    private readonly IPatchWorkflowService? _patchWorkflow;
     private readonly AsyncRelayCommand _selectBaselineCommand;
     private readonly AsyncRelayCommand _selectTargetCommand;
     private readonly AsyncRelayCommand _compareCommand;
     private readonly RelayCommand _cancelCommand;
     private readonly RelayCommand _setFilterCommand;
+    private readonly AsyncRelayCommand _buildPatchCommand;
     private string _baselinePath = string.Empty;
     private string _targetPath = string.Empty;
     private CompareSessionState _state;
@@ -27,15 +30,22 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     private CompareResult? _result;
     private CancellationTokenSource? _comparisonCancellation;
 
-    public CompareWorkspaceViewModel(IFolderPicker folderPicker, ICompareService compareService)
+    public CompareWorkspaceViewModel(
+        IFolderPicker folderPicker,
+        ICompareService compareService,
+        IPatchStoragePicker? patchStoragePicker = null,
+        IPatchWorkflowService? patchWorkflow = null)
     {
         _folderPicker = folderPicker ?? throw new ArgumentNullException(nameof(folderPicker));
         _compareService = compareService ?? throw new ArgumentNullException(nameof(compareService));
+        _patchStoragePicker = patchStoragePicker;
+        _patchWorkflow = patchWorkflow;
         _selectBaselineCommand = new AsyncRelayCommand(_ => SelectBaselineAsync(), _ => !IsBusy);
         _selectTargetCommand = new AsyncRelayCommand(_ => SelectTargetAsync(), _ => !IsBusy);
         _compareCommand = new AsyncRelayCommand(_ => CompareAsync(), _ => CanCompare);
         _cancelCommand = new RelayCommand(_ => Cancel(), _ => IsBusy);
         _setFilterCommand = new RelayCommand(SetFilter, _ => HasResult);
+        _buildPatchCommand = new AsyncRelayCommand(_ => BuildPatchAsync(), _ => CanBuildPatch);
         SetState(CompareSessionState.Empty);
     }
 
@@ -45,6 +55,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     public ICommand CompareCommand => _compareCommand;
     public ICommand CancelCommand => _cancelCommand;
     public ICommand SetFilterCommand => _setFilterCommand;
+    public ICommand BuildPatchCommand => _buildPatchCommand;
     public ObservableCollection<DiffReviewItemViewModel> FilteredEntries { get; } = [];
 
     public string BaselinePath
@@ -61,7 +72,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
 
     public CompareSessionState State => _state;
     public CompareFilter Filter => _filter;
-    public bool IsBusy => State is CompareSessionState.ScanningBaseline or CompareSessionState.ScanningTarget or CompareSessionState.Comparing;
+    public bool IsBusy => State is CompareSessionState.ScanningBaseline or CompareSessionState.ScanningTarget or CompareSessionState.Comparing or CompareSessionState.GeneratingPatch;
     public bool CanCompare => !IsBusy && !string.IsNullOrWhiteSpace(BaselinePath) && !string.IsNullOrWhiteSpace(TargetPath);
     public bool HasResult => _result is not null;
     public bool IsEmptyState => !HasResult && !IsBusy && State is not CompareSessionState.Error;
@@ -69,6 +80,12 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     public bool IsCancelled => State == CompareSessionState.Cancelled;
     public bool HasChanges => _result?.Summary.ChangedCount > 0;
     public bool HasNoChanges => HasResult && !HasChanges;
+    public bool CanBuildPatch => !IsBusy && HasChanges && _patchStoragePicker is not null && _patchWorkflow is not null;
+    public bool IsPatchBuilt { get; private set; }
+    public string BuiltPatchPath { get; private set; } = string.Empty;
+    public string PatchBuildStatusText => IsPatchBuilt
+        ? $"补丁已验证并发布：{BuiltPatchPath}"
+        : "审核通过后可生成默认 ZIP 补丁";
     public int ProcessedEntries => _processedEntries;
     public string CurrentPath => _currentPath;
     public string ErrorMessage => _errorMessage;
@@ -87,6 +104,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         CompareSessionState.ScanningBaseline => "正在扫描旧快照 / 基线",
         CompareSessionState.ScanningTarget => "正在扫描新快照 / 目标",
         CompareSessionState.Comparing => "正在分类差异",
+        CompareSessionState.GeneratingPatch => "正在校验并发布 ZIP 补丁",
         CompareSessionState.Completed when HasNoChanges => "比较完成，两个快照内容一致",
         CompareSessionState.Completed => "比较完成，请审核差异",
         CompareSessionState.Cancelled => "比较已取消，未保留半成品结果",
@@ -122,6 +140,8 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _comparisonCancellation?.Dispose();
         _comparisonCancellation = new CancellationTokenSource();
         _result = null;
+        IsPatchBuilt = false;
+        BuiltPatchPath = string.Empty;
         _errorMessage = string.Empty;
         _processedEntries = 0;
         _currentPath = string.Empty;
@@ -157,6 +177,49 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     }
 
     public void Cancel() => _comparisonCancellation?.Cancel();
+
+    public async Task BuildPatchAsync()
+    {
+        if (!CanBuildPatch || _result is null || _patchStoragePicker is null || _patchWorkflow is null)
+        {
+            return;
+        }
+
+        string? outputPath = await _patchStoragePicker.SavePatchAsync($"vault-delta-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.zip");
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            return;
+        }
+
+        _errorMessage = string.Empty;
+        IsPatchBuilt = false;
+        BuiltPatchPath = string.Empty;
+        SetState(CompareSessionState.GeneratingPatch);
+        try
+        {
+            await _patchWorkflow.BuildAsync(_result, TargetPath, outputPath);
+            BuiltPatchPath = outputPath;
+            IsPatchBuilt = true;
+            SetState(CompareSessionState.Completed);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception switch
+            {
+                IOException => exception.Message,
+                UnauthorizedAccessException => "无法写入所选补丁位置。",
+                InvalidDataException => exception.Message,
+                _ => "补丁未能安全生成，最终输出不会被发布。",
+            };
+            SetState(CompareSessionState.Error);
+        }
+        finally
+        {
+            OnPropertyChanged(nameof(IsPatchBuilt));
+            OnPropertyChanged(nameof(BuiltPatchPath));
+            OnPropertyChanged(nameof(PatchBuildStatusText));
+        }
+    }
 
     public void Dispose()
     {
@@ -227,6 +290,8 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
 
         field = value;
         _result = null;
+        IsPatchBuilt = false;
+        BuiltPatchPath = string.Empty;
         _errorMessage = string.Empty;
         FilteredEntries.Clear();
         SetState(CanSelectCompare() ? CompareSessionState.Ready : CompareSessionState.Empty);
@@ -252,6 +317,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _compareCommand?.NotifyCanExecuteChanged();
         _cancelCommand?.NotifyCanExecuteChanged();
         _setFilterCommand?.NotifyCanExecuteChanged();
+        _buildPatchCommand?.NotifyCanExecuteChanged();
     }
 
     private void NotifyResultProperties()
@@ -266,6 +332,10 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         OnPropertyChanged(nameof(RenamedCount));
         OnPropertyChanged(nameof(RiskCount));
         OnPropertyChanged(nameof(TransferSizeText));
+        OnPropertyChanged(nameof(CanBuildPatch));
+        OnPropertyChanged(nameof(IsPatchBuilt));
+        OnPropertyChanged(nameof(BuiltPatchPath));
+        OnPropertyChanged(nameof(PatchBuildStatusText));
         OnPropertyChanged(nameof(ErrorMessage));
         OnPropertyChanged(nameof(StatusText));
     }

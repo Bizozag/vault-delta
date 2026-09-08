@@ -237,7 +237,10 @@
 
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Text="下一步将把审核结果交给补丁生成 Gate。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
-                                            <Button Grid.Column="1" Content="生成补丁（Task 20）" Classes="primary" IsEnabled="False" ToolTip.Tip="补丁生成将在下一阶段接入" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                                <TextBlock Text="{Binding PatchBuildStatusText}" Classes="muted" FontSize="11" VerticalAlignment="Center" MaxWidth="330" TextTrimming="CharacterEllipsis" />
+                                                <Button x:Name="BuildPatchButton" Content="生成 ZIP 补丁" Classes="primary" Command="{Binding BuildPatchCommand}" />
+                                            </StackPanel>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -246,53 +249,117 @@
                     </ScrollViewer>
 
                     <ScrollViewer x:Name="PatchesPage" IsVisible="{Binding IsPatchesSelected}" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="34,30,34,42" Spacing="20">
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
-                                <Border Grid.Column="0" Classes="card" Padding="25" MinHeight="238">
+                        <StackPanel Margin="34,26,34,42" Spacing="16" DataContext="{Binding Patches}">
+                            <Grid ColumnDefinitions="1.3*,*" ColumnSpacing="16">
+                                <Border Grid.Column="0" Classes="card" Padding="22">
                                     <StackPanel Spacing="15">
-                                        <Border Width="46" Height="46" HorizontalAlignment="Left" CornerRadius="12" Background="#E2F3EE">
-                                            <TextBlock Text="↧" FontSize="25" Foreground="#087C6A" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="APPLY GATE" Classes="eyebrow" />
+                                                <TextBlock Text="检查并应用补丁" Classes="sectionTitle" FontSize="20" />
+                                                <TextBlock Text="先验证 ZIP、载荷和目标基线。只有 Gate 全部通过后才允许写入。" Classes="muted" FontSize="12" />
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Background="#E8F3EF" CornerRadius="16" Padding="12,6" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" Foreground="#075F52" FontSize="11" FontWeight="SemiBold" />
+                                            </Border>
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                            <TextBox Text="{Binding PackagePath}" IsReadOnly="True" PlaceholderText="尚未选择 .zip 补丁" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                            <Button Grid.Column="1" x:Name="OpenPatchButton" Content="打开补丁" Classes="primary" Command="{Binding OpenPatchCommand}" />
+                                        </Grid>
+
+                                        <Border IsVisible="{Binding ShowPackageSummary}" CornerRadius="10" Background="#F6F7F3" BorderBrush="#DEE1DB" BorderThickness="1" Padding="14">
+                                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="5">
+                                                <TextBlock Text="{Binding PatchId}" FontWeight="SemiBold" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="1" Text="{Binding OperationCount, StringFormat={}{0} 项操作}" Classes="muted" FontSize="11" />
+                                                <TextBlock Grid.Row="1" Text="{Binding SummaryText}" Classes="muted" FontSize="11" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PayloadText}" Classes="muted" FontSize="11" />
+                                            </Grid>
                                         </Border>
-                                        <StackPanel Spacing="5">
-                                            <TextBlock Text="检查并应用补丁" Classes="sectionTitle" />
-                                            <TextBlock Text="打开 .zip 或补丁目录，先验证清单、载荷和目标基线，再决定是否更新。"
-                                                       Classes="muted" TextWrapping="Wrap" LineHeight="20" />
-                                        </StackPanel>
-                                        <Button Content="打开补丁" Classes="primary" HorizontalAlignment="Left" IsEnabled="False" />
+
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                                            <TextBox Text="{Binding TargetPath}" IsReadOnly="True" PlaceholderText="选择要更新的 Obsidian 库" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                            <Button Grid.Column="1" Content="选择目标库" Classes="secondary" Command="{Binding SelectTargetCommand}" />
+                                            <Button Grid.Column="2" x:Name="ValidateBaselineButton" Content="检查基线" Classes="secondary" Command="{Binding ValidateCommand}" />
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="写入前会验证文件系统能力，并为覆盖和删除项建立独立备份。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" x:Name="ApplyPatchButton" Content="应用补丁" Classes="primary" Command="{Binding ApplyCommand}" />
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 
-                                <Border Grid.Column="1" Classes="card" Padding="25" MinHeight="238">
+                                <Border Grid.Column="1" Classes="card" Padding="22">
                                     <StackPanel Spacing="15">
-                                        <Border Width="46" Height="46" HorizontalAlignment="Left" CornerRadius="12" Background="#F9ECDF">
-                                            <TextBlock Text="↶" FontSize="25" Foreground="#A45C23" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Spacing="5">
-                                            <TextBlock Text="恢复未完成事务" Classes="sectionTitle" />
-                                            <TextBlock Text="从 Journal 和备份目录继续回滚。恢复不依赖原补丁包，并会逐项验证。"
-                                                       Classes="muted" TextWrapping="Wrap" LineHeight="20" />
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="RECOVERY" Classes="eyebrow" Foreground="#A45C23" />
+                                            <TextBlock Text="事务恢复" Classes="sectionTitle" FontSize="20" />
+                                            <TextBlock Text="恢复只需要 Journal 与同目录备份，不依赖原补丁包；中断后可使用同一 Journal 重试。" Classes="muted" FontSize="12" TextWrapping="Wrap" />
                                         </StackPanel>
-                                        <Button Content="查找恢复记录" Classes="secondary" HorizontalAlignment="Left" IsEnabled="False" />
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                            <TextBox Text="{Binding JournalPath}" IsReadOnly="True" PlaceholderText="尚未选择 journal.json" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                            <Button Grid.Column="1" Content="打开 Journal" Classes="secondary" Command="{Binding OpenJournalCommand}" />
+                                        </Grid>
+                                        <Border Background="#FFF4E9" BorderBrush="#EAC9AA" BorderThickness="1" CornerRadius="9" Padding="12">
+                                            <TextBlock Text="恢复会反向执行已完成操作，并逐项校验目标是否回到基线。" Foreground="#8A512B" FontSize="11" TextWrapping="Wrap" />
+                                        </Border>
+                                        <Button x:Name="RollbackButton" Content="开始恢复" Classes="secondary" HorizontalAlignment="Left" Command="{Binding RollbackCommand}" />
                                     </StackPanel>
                                 </Border>
                             </Grid>
 
-                            <Border Classes="card" Padding="24">
-                                <Grid RowDefinitions="Auto,Auto" RowSpacing="20">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="最近事务" Classes="sectionTitle" />
-                                            <TextBlock Text="此设备尚未产生应用或回滚记录。" Classes="muted" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="0 条记录" Classes="muted" VerticalAlignment="Center" />
-                                    </Grid>
-                                    <Border Grid.Row="1" Padding="28" CornerRadius="10" Background="#F6F7F3" BorderBrush="#E0E2DC" BorderThickness="1">
-                                        <StackPanel HorizontalAlignment="Center" Spacing="6">
-                                            <TextBlock Text="暂无事务" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                            <TextBlock Text="应用过的补丁和可恢复事务会显示在这里。" Classes="muted" FontSize="12" />
-                                        </StackPanel>
-                                    </Border>
+                            <Border x:Name="ConflictPanel" Classes="card" Padding="20" IsVisible="{Binding ShowConflictPanel}" BorderBrush="#E4B691">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="基线冲突：目标库尚未被修改" FontWeight="SemiBold" Foreground="#934A24" />
+                                        <TextBlock Text="请确认选中了正确的旧版本库，或先处理以下文件差异。" Classes="muted" FontSize="12" />
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding Conflicts}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:BaselineConflictItemViewModel">
+                                                <Grid ColumnDefinitions="130,*,1.2*" ColumnSpacing="12" Margin="0,3">
+                                                    <TextBlock Text="{Binding TypeText}" Foreground="#A45C23" FontSize="11" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Path}" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Message}" Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="PatchErrorPanel" Classes="card" Padding="18" IsVisible="{Binding IsError}" BorderBrush="#E2AAA0">
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="操作未完成" Foreground="#9B4335" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding ErrorMessage}" Classes="muted" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="ApplyResultPanel" Classes="card" Padding="20" IsVisible="{Binding ShowApplyResult}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                    <Border Width="42" Height="42" CornerRadius="21" Background="#DDF2EA"><TextBlock Text="✓" Foreground="#087C6A" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" />
+                                        <TextBlock Text="备份和 Journal 已保留；如需撤销，可直接使用右侧恢复入口。" Classes="muted" FontSize="12" />
+                                    </StackPanel>
                                 </Grid>
+                            </Border>
+
+                            <Border x:Name="NeedsRollbackPanel" Classes="card" Padding="20" IsVisible="{Binding ShowNeedsRollback}" BorderBrush="#E3AE83">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                    <Border Width="42" Height="42" CornerRadius="21" Background="#FFF0E2"><TextBlock Text="!" Foreground="#A45C23" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="应用中断，需要恢复" FontWeight="SemiBold" Foreground="#934A24" />
+                                        <TextBlock Text="{Binding ErrorMessage}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                                        <TextBlock Text="Journal 已自动填入右侧恢复入口；恢复不依赖原补丁包。" Foreground="#A45C23" FontSize="11" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border x:Name="RollbackResultPanel" Classes="card" Padding="20" IsVisible="{Binding ShowRollbackResult}">
+                                <TextBlock Text="恢复完成，所有可逆操作已逐项校验。" Foreground="#075F52" FontWeight="SemiBold" HorizontalAlignment="Center" />
                             </Border>
                         </StackPanel>
                     </ScrollViewer>

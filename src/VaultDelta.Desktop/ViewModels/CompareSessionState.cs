@@ -7,6 +7,7 @@ public enum CompareSessionState
     ScanningBaseline,
     ScanningTarget,
     Comparing,
+    GeneratingPatch,
     Completed,
     Cancelled,
     Error,

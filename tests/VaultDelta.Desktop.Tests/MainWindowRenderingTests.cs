@@ -9,6 +9,10 @@ using VaultDelta.Desktop.ViewModels;
 using VaultDelta.Domain.Diffs;
 using VaultDelta.Domain.Paths;
 using VaultDelta.Domain.Snapshots;
+using VaultDelta.Application.Apply;
+using VaultDelta.Application.Patches;
+using VaultDelta.Domain.Apply;
+using VaultDelta.Domain.Patches;
 
 namespace VaultDelta.Desktop.Tests;
 
@@ -135,6 +139,40 @@ public sealed class MainWindowRenderingTests
         errorWindow.Close();
     }
 
+    [AvaloniaFact]
+    public async Task Patch_gate_conflict_and_recovery_states_render()
+    {
+        PackageInspectionResult inspection = CreateInspection();
+        PatchUiWorkflow workflow = new(
+            inspection,
+            new BaselineValidationResult(
+                [new BaselineConflict(RelativePath.Parse("Notes/edit.md"), BaselineConflictType.UnexpectedContent, "The target file content differs from the baseline.")]));
+        MainWindowViewModel shell = new(
+            new SequencedFolderPicker("D:/Vault/target"),
+            new ImmediateCompareService(CreateResult()),
+            new PatchUiStoragePicker("D:/Transfer/update.zip", "D:/Transactions/op/journal.json"),
+            workflow);
+        shell.NavigateCommand.Execute("Patches");
+        await shell.Patches.OpenPatchAsync();
+        await shell.Patches.SelectTargetAsync();
+        await shell.Patches.ValidateAsync();
+        MainWindow window = new(shell)
+        {
+            Width = 1280,
+            Height = 780,
+        };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(window.FindControl<Border>("ConflictPanel")!.IsVisible);
+        Assert.False(window.FindControl<Button>("ApplyPatchButton")!.IsEffectivelyEnabled);
+        SaveFrame(window, Path.Combine(Path.GetTempPath(), "vaultdelta-ui-preview", "patch-conflict.png"));
+
+        await shell.Patches.OpenJournalAsync();
+        Assert.True(shell.Patches.CanRollback);
+        window.Close();
+    }
+
     private static void SaveFrame(MainWindow window, string path)
     {
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -156,6 +194,22 @@ public sealed class MainWindowRenderingTests
 
     private static SnapshotEntry File(string path, long length, char hash) =>
         new(RelativePath.Parse(path), SnapshotEntryKind.File, new FileFingerprint(length, DateTimeOffset.UnixEpoch, new string(hash, 64)));
+
+    private static PackageInspectionResult CreateInspection()
+    {
+        PatchOperation operation = PatchOperation.Add(10, RelativePath.Parse("new.md"), new FileFingerprint(4096, DateTimeOffset.UnixEpoch, new string('f', 64)));
+        PatchManifest manifest = new(
+            "1.0",
+            "vault-delta-preview",
+            DateTimeOffset.UnixEpoch,
+            "0.1.0",
+            "rules",
+            "base",
+            "target",
+            new PatchSummary(1, 0, 0, 0, 4096),
+            [operation]);
+        return new PackageInspectionResult(manifest, 1, 4096);
+    }
 
     private sealed class NullFolderPicker : IFolderPicker
     {
@@ -183,5 +237,28 @@ public sealed class MainWindowRenderingTests
     {
         public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default) =>
             ValueTask.FromException<CompareResult>(new DirectoryNotFoundException());
+    }
+
+    private sealed class SequencedFolderPicker(params string[] paths) : IFolderPicker
+    {
+        private readonly Queue<string> _paths = new(paths);
+        public Task<string?> PickFolderAsync(string title, CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(_paths.Count == 0 ? null : _paths.Dequeue());
+    }
+
+    private sealed class PatchUiStoragePicker(string patch, string journal) : IPatchStoragePicker
+    {
+        public Task<string?> SavePatchAsync(string suggestedFileName, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> OpenPatchAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(patch);
+        public Task<string?> OpenJournalAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(journal);
+    }
+
+    private sealed class PatchUiWorkflow(PackageInspectionResult inspection, BaselineValidationResult validation) : IPatchWorkflowService
+    {
+        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => ValueTask.FromResult(inspection);
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult packageInspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(validation);
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(new ApplyResult(ApplyJournalStatus.Committed, validation, "journal.json", null));
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) => ValueTask.FromResult(new RollbackResult(ApplyJournalStatus.RolledBack, journalPath, null));
     }
 }

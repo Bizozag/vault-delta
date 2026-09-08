@@ -10,13 +10,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private ShellPage _currentPage = ShellPage.Compare;
 
     public MainWindowViewModel()
-        : this(new PreviewFolderPicker(), new PreviewCompareService())
+        : this(
+            new PreviewFolderPicker(),
+            new PreviewCompareService(),
+            new PreviewPatchStoragePicker(),
+            new PreviewPatchWorkflowService())
     {
     }
 
-    public MainWindowViewModel(IFolderPicker folderPicker, ICompareService compareService)
+    public MainWindowViewModel(
+        IFolderPicker folderPicker,
+        ICompareService compareService,
+        IPatchStoragePicker? patchStoragePicker = null,
+        IPatchWorkflowService? patchWorkflow = null)
     {
-        Compare = new CompareWorkspaceViewModel(folderPicker, compareService);
+        patchStoragePicker ??= new PreviewPatchStoragePicker();
+        patchWorkflow ??= new PreviewPatchWorkflowService();
+        Compare = new CompareWorkspaceViewModel(folderPicker, compareService, patchStoragePicker, patchWorkflow);
+        Patches = new PatchWorkspaceViewModel(folderPicker, patchStoragePicker, patchWorkflow);
         NavigateCommand = new RelayCommand(Navigate);
     }
 
@@ -25,6 +36,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand NavigateCommand { get; }
 
     public CompareWorkspaceViewModel Compare { get; }
+
+    public PatchWorkspaceViewModel Patches { get; }
 
     public ShellPage CurrentPage
     {
@@ -103,5 +116,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             CancellationToken cancellationToken = default) =>
             ValueTask.FromException<VaultDelta.Application.Compare.CompareResult>(
                 new InvalidOperationException("Preview mode cannot compare folders."));
+    }
+
+    private sealed class PreviewPatchStoragePicker : IPatchStoragePicker
+    {
+        public Task<string?> SavePatchAsync(string suggestedFileName, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> OpenPatchAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> OpenJournalAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class PreviewPatchWorkflowService : IPatchWorkflowService
+    {
+        private static InvalidOperationException Error() => new("Preview mode cannot run patch workflows.");
+
+        public ValueTask BuildAsync(VaultDelta.Application.Compare.CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default) => ValueTask.FromException(Error());
+        public ValueTask<VaultDelta.Application.Patches.PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Patches.PackageInspectionResult>(Error());
+        public ValueTask<VaultDelta.Application.Apply.BaselineValidationResult> ValidateAsync(VaultDelta.Application.Patches.PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Apply.BaselineValidationResult>(Error());
+        public ValueTask<VaultDelta.Application.Apply.ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Apply.ApplyResult>(Error());
+        public ValueTask<VaultDelta.Application.Apply.RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Apply.RollbackResult>(Error());
     }
 }
