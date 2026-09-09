@@ -32,7 +32,7 @@ public sealed class MainWindowRenderingTests
 
         Assert.True(window.FindControl<ScrollViewer>("ComparePage")!.IsVisible);
         Assert.False(window.FindControl<ScrollViewer>("PatchesPage")!.IsVisible);
-        Assert.False(window.FindControl<ScrollViewer>("SettingsPage")!.IsVisible);
+        Assert.Null(window.FindControl<ScrollViewer>("SettingsPage"));
         Assert.True(window.Bounds.Width >= 1024);
         Assert.True(window.Bounds.Height >= 680);
         Assert.NotNull(window.FindControl<Button>("CompareNavigation"));
@@ -51,10 +51,6 @@ public sealed class MainWindowRenderingTests
         Assert.True(window.FindControl<ScrollViewer>("PatchesPage")!.IsVisible);
         Assert.False(window.FindControl<ScrollViewer>("ComparePage")!.IsVisible);
 
-        window.FindControl<Button>("SettingsNavigation")!.Command!.Execute("Settings");
-        Dispatcher.UIThread.RunJobs();
-        Assert.True(window.FindControl<ScrollViewer>("SettingsPage")!.IsVisible);
-        Assert.False(window.FindControl<ScrollViewer>("PatchesPage")!.IsVisible);
         window.Close();
     }
 
@@ -77,10 +73,6 @@ public sealed class MainWindowRenderingTests
         window.FindControl<Button>("PatchesNavigation")!.Command!.Execute("Patches");
         Dispatcher.UIThread.RunJobs();
         SaveFrame(window, Path.Combine(outputDirectory, "patches.png"));
-        window.FindControl<Button>("SettingsNavigation")!.Command!.Execute("Settings");
-        Dispatcher.UIThread.RunJobs();
-        SaveFrame(window, Path.Combine(outputDirectory, "settings.png"));
-
         Assert.All(
             Directory.GetFiles(outputDirectory, "*.png"),
             path => Assert.True(new FileInfo(path).Length > 10_000, $"Rendered preview is unexpectedly small: {path}"));
@@ -137,6 +129,40 @@ public sealed class MainWindowRenderingTests
         Assert.True(errorWindow.FindControl<Border>("CompareErrorPanel")!.IsVisible);
         Assert.False(errorWindow.FindControl<StackPanel>("CompareResultPanel")!.IsVisible);
         errorWindow.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task Zip_generation_renders_determinate_progress_panel()
+    {
+        ProgressPatchWorkflow workflow = new();
+        MainWindowViewModel shell = new(
+            new NullFolderPicker(),
+            new ImmediateCompareService(CreateResult()),
+            new BuildStoragePicker("D:/Transfer/delta.zip"),
+            workflow);
+        shell.Compare.BaselinePath = "D:/Vault/baseline";
+        shell.Compare.TargetPath = "D:/Vault/target";
+        await shell.Compare.CompareAsync();
+
+        Task build = shell.Compare.BuildPatchAsync();
+        await workflow.Started.Task;
+        await Task.Delay(50);
+        MainWindow window = new(shell)
+        {
+            Width = 1280,
+            Height = 780,
+        };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(window.FindControl<Border>("PatchBuildProgressPanel")!.IsVisible);
+        Assert.False(window.FindControl<Border>("ScanningPanel")!.IsVisible);
+        Assert.Equal(72, shell.Compare.PatchBuildProgressPercentage);
+        SaveFrame(window, Path.Combine(Path.GetTempPath(), "vaultdelta-ui-preview", "zip-progress.png"));
+
+        workflow.Release.SetResult();
+        await build;
+        window.Close();
     }
 
     [AvaloniaFact]
@@ -253,9 +279,35 @@ public sealed class MainWindowRenderingTests
         public Task<string?> OpenJournalAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(journal);
     }
 
+    private sealed class BuildStoragePicker(string output) : IPatchStoragePicker
+    {
+        public Task<string?> SavePatchAsync(string suggestedFileName, CancellationToken cancellationToken = default) => Task.FromResult<string?>(output);
+        public Task<string?> OpenPatchAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> OpenJournalAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class ProgressPatchWorkflow : IPatchWorkflowService
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default)
+        {
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.Compressing, 72, 2, 5, "files/Notes/edit.md"));
+            Started.SetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.Completed, 100, 5, 5, "delta.zip"));
+        }
+
+        public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
     private sealed class PatchUiWorkflow(PackageInspectionResult inspection, BaselineValidationResult validation) : IPatchWorkflowService
     {
-        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => ValueTask.FromResult(inspection);
         public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult packageInspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(validation);
         public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(new ApplyResult(ApplyJournalStatus.Committed, validation, "journal.json", null));

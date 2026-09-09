@@ -53,7 +53,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsCompareSelected));
             OnPropertyChanged(nameof(IsPatchesSelected));
-            OnPropertyChanged(nameof(IsSettingsSelected));
             OnPropertyChanged(nameof(PageTitle));
             OnPropertyChanged(nameof(PageDescription));
         }
@@ -63,13 +62,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsPatchesSelected => CurrentPage == ShellPage.Patches;
 
-    public bool IsSettingsSelected => CurrentPage == ShellPage.Settings;
-
     public string PageTitle => CurrentPage switch
     {
         ShellPage.Compare => "创建增量补丁",
         ShellPage.Patches => "补丁与恢复",
-        ShellPage.Settings => "设置",
         _ => throw new InvalidOperationException($"Unknown shell page: {CurrentPage}."),
     };
 
@@ -77,7 +73,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         ShellPage.Compare => "比较两个 Obsidian 快照，只打包真正发生变化的内容。",
         ShellPage.Patches => "检查、应用离线补丁，并从未完成的事务中安全恢复。",
-        ShellPage.Settings => "管理默认过滤范围、补丁格式和本机事务位置。",
         _ => throw new InvalidOperationException($"Unknown shell page: {CurrentPage}."),
     };
 
@@ -129,7 +124,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         private static InvalidOperationException Error() => new("Preview mode cannot run patch workflows.");
 
-        public ValueTask BuildAsync(VaultDelta.Application.Compare.CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default) => ValueTask.FromException(Error());
+        public ValueTask BuildAsync(VaultDelta.Application.Compare.CompareResult comparison, string sourceRoot, string outputPath, IProgress<VaultDelta.Application.Patches.PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromException(Error());
         public ValueTask<VaultDelta.Application.Patches.PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Patches.PackageInspectionResult>(Error());
         public ValueTask<VaultDelta.Application.Apply.BaselineValidationResult> ValidateAsync(VaultDelta.Application.Patches.PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Apply.BaselineValidationResult>(Error());
         public ValueTask<VaultDelta.Application.Apply.ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromException<VaultDelta.Application.Apply.ApplyResult>(Error());

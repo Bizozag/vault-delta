@@ -41,11 +41,12 @@ public sealed class SnapshotRuleSetTests
     [InlineData("Assets/Thumbs.db")]
     [InlineData(".DS_Store")]
     [InlineData("Notes/.DS_Store")]
-    public void Obsidian_default_excludes_transient_paths(string path)
+    public void Obsidian_default_includes_every_regular_path(string path)
     {
         SnapshotRuleSet rules = ObsidianDefaultRules.Create();
 
-        Assert.False(rules.Evaluate(RelativePath.Parse(path)).IsIncluded);
+        Assert.True(rules.Evaluate(RelativePath.Parse(path)).IsIncluded);
+        Assert.Null(rules.Evaluate(RelativePath.Parse(path)).MatchedRule);
     }
 
     [Theory]

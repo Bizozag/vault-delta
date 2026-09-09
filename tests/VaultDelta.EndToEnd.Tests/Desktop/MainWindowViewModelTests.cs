@@ -11,13 +11,11 @@ public sealed class MainWindowViewModelTests
 
         Assert.True(viewModel.IsCompareSelected);
         Assert.False(viewModel.IsPatchesSelected);
-        Assert.False(viewModel.IsSettingsSelected);
         Assert.Equal("创建增量补丁", viewModel.PageTitle);
     }
 
     [Theory]
     [InlineData("Patches", ShellPage.Patches, "补丁与恢复")]
-    [InlineData("Settings", ShellPage.Settings, "设置")]
     [InlineData("Compare", ShellPage.Compare, "创建增量补丁")]
     public void Navigation_changes_exactly_one_selected_page(
         string parameter,
@@ -32,7 +30,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(expectedTitle, viewModel.PageTitle);
         Assert.Equal(
             1,
-            new[] { viewModel.IsCompareSelected, viewModel.IsPatchesSelected, viewModel.IsSettingsSelected }
+            new[] { viewModel.IsCompareSelected, viewModel.IsPatchesSelected }
                 .Count(selected => selected));
     }
 

@@ -22,6 +22,7 @@ public sealed class LocalPatchWorkflowService(
         CompareResult comparison,
         string sourceRoot,
         string outputPath,
+        IProgress<PackageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(comparison);
@@ -33,7 +34,7 @@ public sealed class LocalPatchWorkflowService(
             comparison.Baseline,
             comparison.Target,
             comparison.Differences);
-        return _builder.BuildAsync(manifest, sourceRoot, outputPath, cancellationToken);
+        return _builder.BuildAsync(manifest, sourceRoot, outputPath, progress, cancellationToken);
     }
 
     public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) =>

@@ -77,7 +77,7 @@ public sealed class SnapshotScannerTests
     }
 
     [Fact]
-    public async Task ScanAsync_skips_excluded_files_before_hashing()
+    public async Task ScanAsync_includes_trash_and_regular_files_by_default()
     {
         FakeFileSystem fileSystem = new([File(".trash/deleted.md", 3), File("Notes/keep.md", 4)]);
         FakeHasher hasher = new();
@@ -85,9 +85,9 @@ public sealed class SnapshotScannerTests
 
         var inventory = await scanner.ScanAsync("/vault", ObsidianDefaultRules.Create(), CancellationToken.None);
 
-        Assert.Equal("Notes/keep.md", Assert.Single(inventory.Entries).Path.Value);
-        Assert.Equal(1, hasher.CallCount);
-        Assert.False(fileSystem.ShouldDescend!(".trash"));
+        Assert.Equal([".trash/deleted.md", "Notes/keep.md"], inventory.Entries.Select(entry => entry.Path.Value));
+        Assert.Equal(2, hasher.CallCount);
+        Assert.True(fileSystem.ShouldDescend!(".trash"));
         Assert.True(fileSystem.ShouldDescend("Notes"));
     }
 

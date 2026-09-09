@@ -1,14 +1,4 @@
 {
   "name": "obsidian-default-v1",
-  "rules": [
-    { "id": "exclude-thumbs-db", "action": "exclude", "pattern": "**/Thumbs.db" },
-    { "id": "exclude-desktop-ini", "action": "exclude", "pattern": "**/Desktop.ini" },
-    { "id": "exclude-ds-store", "action": "exclude", "pattern": "**/.DS_Store" },
-    { "id": "exclude-trash-root", "action": "exclude", "pattern": ".trash" },
-    { "id": "exclude-trash", "action": "exclude", "pattern": ".trash/**" },
-    { "id": "exclude-workspace", "action": "exclude", "pattern": ".obsidian/workspace.json" },
-    { "id": "exclude-mobile-workspace", "action": "exclude", "pattern": ".obsidian/workspace-mobile.json" },
-    { "id": "include-plugins", "action": "include", "pattern": ".obsidian/plugins/**" },
-    { "id": "include-themes", "action": "include", "pattern": ".obsidian/themes/**" }
-  ]
+  "rules": []
 }

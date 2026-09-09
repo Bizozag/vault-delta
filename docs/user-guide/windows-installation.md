@@ -58,7 +58,7 @@ Get-Content .\SHA256SUMS.txt
 4. 选择“生成 ZIP 补丁”。最终 ZIP 只有在 manifest 和所有载荷重新校验成功后才会发布。
 5. 把这个补丁 ZIP 复制到移动硬盘、局域网传输目录或目标 Windows 电脑。无需传输完整 Obsidian 库。
 
-`.obsidian/plugins/**` 和 `.obsidian/themes/**` 默认包含；`.trash/**` 和 Obsidian workspace 状态默认排除。
+默认比较全部普通文件，包括 `.obsidian/**`、`.trash/**` 和平台元数据文件；界面不提供特殊目录开关。路径与文件系统安全检查始终启用。
 
 ## 在目标电脑应用补丁
 

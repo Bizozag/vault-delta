@@ -18,9 +18,9 @@ namespace VaultDelta.EndToEnd.Tests.Obsidian;
 
 public sealed class ObsidianVaultRoundTripTests
 {
-    private const string ExpectedBaselineSnapshotId = "sha256:b1f936db1d5afd3000704e84000159766999e523d76a0ca9e7adc81d8d67e114";
-    private const string ExpectedTargetSnapshotId = "sha256:5d67c9a4dc6941b90e86cfd891e20a84d84fb64ed6424475f80a61fa710c7a1b";
-    private const string ExpectedManifestSha256 = "25bba961a235fb5532529c4834266d85ada3bcc518ed5787bd56b3d566a585dd";
+    private const string ExpectedBaselineSnapshotId = "sha256:30652d0fe9ede9a6ee1615b6d4cb5baeb69bb25444bf42e94335304d5382ceb9";
+    private const string ExpectedTargetSnapshotId = "sha256:d0885a865cc3cf93e00ed29c842fdfee9f6b3cadec4ae81d7ba738bb12e5bfa3";
+    private const string ExpectedManifestSha256 = "013928df64fd7decdb2cb3ea4ec2c94955a7358a3225f26ad837f090c08b9b1f";
 
     [Fact]
     public async Task Fixed_obsidian_fixture_round_trips_compare_zip_apply_and_rollback()
@@ -47,7 +47,7 @@ public sealed class ObsidianVaultRoundTripTests
 
         Assert.Equal(manifest.PatchId, inspection.Manifest.PatchId);
         Assert.Equal(manifest.Summary.PayloadBytes, inspection.VerifiedPayloadBytes);
-        AssertArchiveExclusions(fixture.PackagePath);
+        AssertArchiveCoverage(fixture.PackagePath);
 
         Dictionary<string, byte[]> baselineTree = ObsidianVaultFixture.ReadManagedTree(fixture.AppliedRoot);
         ApplyResult applied = await CreateApplyWorkflow(hasher, inspector).ApplyAsync(
@@ -58,7 +58,7 @@ public sealed class ObsidianVaultRoundTripTests
             ObsidianVaultFixture.ReadManagedTree(fixture.TargetRoot),
             ObsidianVaultFixture.ReadManagedTree(fixture.AppliedRoot));
         Assert.Contains("Target trash", await File.ReadAllTextAsync(Path.Combine(fixture.TargetRoot, ".trash", "Discarded.md")));
-        Assert.Contains("Baseline trash", await File.ReadAllTextAsync(Path.Combine(fixture.AppliedRoot, ".trash", "Discarded.md")));
+        Assert.Contains("Target trash", await File.ReadAllTextAsync(Path.Combine(fixture.AppliedRoot, ".trash", "Discarded.md")));
 
         RollbackResult rollback = await CreateRollbackWorkflow(hasher).RollbackAsync(applied.JournalPath!);
 
@@ -97,6 +97,9 @@ public sealed class ObsidianVaultRoundTripTests
         Assert.Equal(first.Baseline.SnapshotId, second.Baseline.SnapshotId);
         Assert.Equal(first.Target.SnapshotId, second.Target.SnapshotId);
         byte[] firstJson = PatchManifestJson.Serialize(firstManifest);
+        Console.WriteLine($"Baseline snapshot: {first.Baseline.SnapshotId}");
+        Console.WriteLine($"Target snapshot: {first.Target.SnapshotId}");
+        Console.WriteLine($"Manifest SHA-256: {Convert.ToHexStringLower(SHA256.HashData(firstJson))}");
         Assert.Equal(ExpectedBaselineSnapshotId, first.Baseline.SnapshotId);
         Assert.Equal(ExpectedTargetSnapshotId, first.Target.SnapshotId);
         Assert.Equal(
@@ -124,17 +127,16 @@ public sealed class ObsidianVaultRoundTripTests
         Assert.Equal(DiffEntryType.Modified, byPath[".obsidian/plugins/sample/main.js"]);
         Assert.Equal(DiffEntryType.Modified, byPath[".obsidian/plugins/sample/manifest.json"]);
         Assert.Equal(DiffEntryType.Added, byPath[".obsidian/themes/Local Theme/theme.css"]);
-        Assert.DoesNotContain(comparison.Baseline.Entries, entry => entry.Path.Value.StartsWith(".trash", StringComparison.Ordinal));
-        Assert.DoesNotContain(comparison.Target.Entries, entry => entry.Path.Value.StartsWith(".trash", StringComparison.Ordinal));
-        Assert.DoesNotContain(comparison.Differences.Entries, entry => (entry.TargetPath ?? entry.BasePath)!.Value == ".obsidian/workspace.json");
+        Assert.Equal(DiffEntryType.Modified, byPath[".trash/Discarded.md"]);
+        Assert.Equal(DiffEntryType.Modified, byPath[".obsidian/workspace.json"]);
     }
 
-    private static void AssertArchiveExclusions(string packagePath)
+    private static void AssertArchiveCoverage(string packagePath)
     {
         using ZipArchive archive = ZipFile.OpenRead(packagePath);
         string[] entries = archive.Entries.Select(entry => entry.FullName.Replace('\\', '/')).ToArray();
-        Assert.DoesNotContain(entries, path => path.Contains(".trash", StringComparison.Ordinal));
-        Assert.DoesNotContain(entries, path => path.Contains("workspace.json", StringComparison.Ordinal));
+        Assert.Contains(entries, path => path == "files/.trash/Discarded.md");
+        Assert.Contains(entries, path => path == "files/.obsidian/workspace.json");
         Assert.Contains(entries, path => path == "files/.obsidian/plugins/sample/main.js");
         Assert.Contains(entries, path => path == "files/.obsidian/themes/Local Theme/theme.css");
         Assert.Contains(entries, path => path == "files/Attachments/diagram.png");

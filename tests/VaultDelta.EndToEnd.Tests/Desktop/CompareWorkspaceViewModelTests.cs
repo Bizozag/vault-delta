@@ -122,6 +122,36 @@ public sealed class CompareWorkspaceViewModelTests
         Assert.Equal("C:/target", patchWorkflow.SourceRoot);
     }
 
+    [Fact]
+    public async Task Zip_generation_exposes_determinate_stage_percentage_and_current_file()
+    {
+        BlockingPatchWorkflow patchWorkflow = new();
+        using CompareWorkspaceViewModel viewModel = new(
+            new QueueFolderPicker(),
+            new ImmediateCompareService(CreateResult()),
+            new SaveOnlyPicker("D:/out/delta.zip"),
+            patchWorkflow)
+        {
+            BaselinePath = "C:/baseline",
+            TargetPath = "C:/target",
+        };
+        await viewModel.CompareAsync();
+
+        Task build = viewModel.BuildPatchAsync();
+        await patchWorkflow.Started.Task;
+        await Task.Delay(50);
+
+        Assert.True(viewModel.IsGeneratingPatch);
+        Assert.Equal(72, viewModel.PatchBuildProgressPercentage);
+        Assert.Equal("正在压缩 ZIP", viewModel.PatchBuildProgressText);
+        Assert.Equal("files/Notes/Welcome.md", viewModel.PatchBuildCurrentPath);
+
+        patchWorkflow.Release.SetResult();
+        await build;
+        Assert.False(viewModel.IsGeneratingPatch);
+        Assert.Equal(100, viewModel.PatchBuildProgressPercentage);
+    }
+
     private static CompareWorkspaceViewModel ReadyViewModel(ICompareService service) =>
         new(new QueueFolderPicker(), service)
         {
@@ -198,11 +228,31 @@ public sealed class CompareWorkspaceViewModelTests
         public CompareResult? Comparison { get; private set; }
         public string? SourceRoot { get; private set; }
 
-        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default)
+        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default)
         {
             Comparison = comparison;
             SourceRoot = sourceRoot;
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.Completed, 100, 1, 1, "delta.zip"));
             return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class BlockingPatchWorkflow : IPatchWorkflowService
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default)
+        {
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.Compressing, 72, 2, 5, "files/Notes/Welcome.md"));
+            Started.SetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.Completed, 100, 5, 5, "delta.zip"));
         }
 
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();

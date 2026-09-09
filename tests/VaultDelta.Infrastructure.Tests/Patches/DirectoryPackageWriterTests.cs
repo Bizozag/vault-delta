@@ -28,7 +28,7 @@ public sealed class DirectoryPackageWriterTests : IDisposable
         PatchManifest manifest = await CreateAddManifestAsync(source, "Notes/new.md");
         PackageBuilder builder = new(new DirectoryPackageWriter(new Sha256ContentHasher()));
 
-        await builder.BuildAsync(manifest, source, output, CancellationToken.None);
+        await builder.BuildAsync(manifest, source, output, cancellationToken: CancellationToken.None);
 
         Assert.True(File.Exists(Path.Combine(output, "manifest.json")));
         Assert.True(File.Exists(Path.Combine(output, "README.txt")));
@@ -53,7 +53,7 @@ public sealed class DirectoryPackageWriterTests : IDisposable
         PackageBuilder builder = new(new DirectoryPackageWriter(new Sha256ContentHasher()));
 
         await Assert.ThrowsAsync<IOException>(async () =>
-            await builder.BuildAsync(EmptyManifest(), source, output, CancellationToken.None));
+            await builder.BuildAsync(EmptyManifest(), source, output, cancellationToken: CancellationToken.None));
 
         Assert.Equal("keep", await File.ReadAllTextAsync(marker, CancellationToken.None));
     }
@@ -70,7 +70,7 @@ public sealed class DirectoryPackageWriterTests : IDisposable
         PackageBuilder builder = new(new DirectoryPackageWriter(new Sha256ContentHasher()));
 
         await Assert.ThrowsAsync<InvalidDataException>(async () =>
-            await builder.BuildAsync(manifest, source, output, CancellationToken.None));
+            await builder.BuildAsync(manifest, source, output, cancellationToken: CancellationToken.None));
 
         Assert.False(Directory.Exists(output));
         Assert.Empty(Directory.GetDirectories(_root, "*.incomplete-*"));
@@ -85,7 +85,7 @@ public sealed class DirectoryPackageWriterTests : IDisposable
         PackageBuilder builder = new(new DirectoryPackageWriter(new Sha256ContentHasher()));
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await builder.BuildAsync(EmptyManifest(), source, output, CancellationToken.None));
+            await builder.BuildAsync(EmptyManifest(), source, output, cancellationToken: CancellationToken.None));
 
         Assert.False(Directory.Exists(output));
     }

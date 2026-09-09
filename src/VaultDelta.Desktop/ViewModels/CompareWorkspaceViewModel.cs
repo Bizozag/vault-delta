@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using VaultDelta.Application.Compare;
+using VaultDelta.Application.Patches;
 using VaultDelta.Desktop.Services;
 using VaultDelta.Domain.Diffs;
 
@@ -27,6 +28,9 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     private int _processedEntries;
     private string _currentPath = string.Empty;
     private string _errorMessage = string.Empty;
+    private int _patchBuildProgressPercentage;
+    private string _patchBuildCurrentPath = string.Empty;
+    private PackageBuildStage _patchBuildStage = PackageBuildStage.Preparing;
     private CompareResult? _result;
     private CancellationTokenSource? _comparisonCancellation;
 
@@ -73,6 +77,8 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     public CompareSessionState State => _state;
     public CompareFilter Filter => _filter;
     public bool IsBusy => State is CompareSessionState.ScanningBaseline or CompareSessionState.ScanningTarget or CompareSessionState.Comparing or CompareSessionState.GeneratingPatch;
+    public bool IsComparing => State is CompareSessionState.ScanningBaseline or CompareSessionState.ScanningTarget or CompareSessionState.Comparing;
+    public bool IsGeneratingPatch => State == CompareSessionState.GeneratingPatch;
     public bool CanCompare => !IsBusy && !string.IsNullOrWhiteSpace(BaselinePath) && !string.IsNullOrWhiteSpace(TargetPath);
     public bool HasResult => _result is not null;
     public bool IsEmptyState => !HasResult && !IsBusy && State is not CompareSessionState.Error;
@@ -86,6 +92,19 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     public string PatchBuildStatusText => IsPatchBuilt
         ? $"补丁已验证并发布：{BuiltPatchPath}"
         : "审核通过后可生成默认 ZIP 补丁";
+    public int PatchBuildProgressPercentage => _patchBuildProgressPercentage;
+    public string PatchBuildCurrentPath => _patchBuildCurrentPath;
+    public string PatchBuildProgressText => _patchBuildStage switch
+    {
+        PackageBuildStage.Preparing => "正在准备补丁目录",
+        PackageBuildStage.CopyingPayloads => "正在复制并校验差异文件",
+        PackageBuildStage.WritingMetadata => "正在写入补丁清单",
+        PackageBuildStage.Compressing => "正在压缩 ZIP",
+        PackageBuildStage.Verifying => "正在重新检查 ZIP 完整性",
+        PackageBuildStage.Publishing => "正在发布最终 ZIP",
+        PackageBuildStage.Completed => "ZIP 补丁生成完成",
+        _ => "正在生成 ZIP 补丁",
+    };
     public int ProcessedEntries => _processedEntries;
     public string CurrentPath => _currentPath;
     public string ErrorMessage => _errorMessage;
@@ -145,6 +164,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _errorMessage = string.Empty;
         _processedEntries = 0;
         _currentPath = string.Empty;
+        ResetPatchProgress();
         FilteredEntries.Clear();
         SetState(CompareSessionState.ScanningBaseline);
         NotifyResultProperties();
@@ -194,10 +214,19 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _errorMessage = string.Empty;
         IsPatchBuilt = false;
         BuiltPatchPath = string.Empty;
+        ResetPatchProgress();
+        _comparisonCancellation?.Dispose();
+        _comparisonCancellation = new CancellationTokenSource();
         SetState(CompareSessionState.GeneratingPatch);
         try
         {
-            await _patchWorkflow.BuildAsync(_result, TargetPath, outputPath);
+            Progress<PackageBuildProgress> progress = new(UpdatePatchProgress);
+            await _patchWorkflow.BuildAsync(
+                _result,
+                TargetPath,
+                outputPath,
+                progress,
+                _comparisonCancellation.Token);
             BuiltPatchPath = outputPath;
             IsPatchBuilt = true;
             SetState(CompareSessionState.Completed);
@@ -307,6 +336,8 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _state = state;
         OnPropertyChanged(nameof(State));
         OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(IsComparing));
+        OnPropertyChanged(nameof(IsGeneratingPatch));
         OnPropertyChanged(nameof(CanCompare));
         OnPropertyChanged(nameof(IsEmptyState));
         OnPropertyChanged(nameof(IsError));
@@ -318,6 +349,26 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _cancelCommand?.NotifyCanExecuteChanged();
         _setFilterCommand?.NotifyCanExecuteChanged();
         _buildPatchCommand?.NotifyCanExecuteChanged();
+    }
+
+    private void UpdatePatchProgress(PackageBuildProgress progress)
+    {
+        _patchBuildStage = progress.Stage;
+        _patchBuildProgressPercentage = Math.Clamp(progress.Percentage, 0, 100);
+        _patchBuildCurrentPath = progress.CurrentPath ?? string.Empty;
+        OnPropertyChanged(nameof(PatchBuildProgressPercentage));
+        OnPropertyChanged(nameof(PatchBuildCurrentPath));
+        OnPropertyChanged(nameof(PatchBuildProgressText));
+    }
+
+    private void ResetPatchProgress()
+    {
+        _patchBuildStage = PackageBuildStage.Preparing;
+        _patchBuildProgressPercentage = 0;
+        _patchBuildCurrentPath = string.Empty;
+        OnPropertyChanged(nameof(PatchBuildProgressPercentage));
+        OnPropertyChanged(nameof(PatchBuildCurrentPath));
+        OnPropertyChanged(nameof(PatchBuildProgressText));
     }
 
     private void NotifyResultProperties()
@@ -333,6 +384,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         OnPropertyChanged(nameof(RiskCount));
         OnPropertyChanged(nameof(TransferSizeText));
         OnPropertyChanged(nameof(CanBuildPatch));
+        OnPropertyChanged(nameof(IsGeneratingPatch));
         OnPropertyChanged(nameof(IsPatchBuilt));
         OnPropertyChanged(nameof(BuiltPatchPath));
         OnPropertyChanged(nameof(PatchBuildStatusText));

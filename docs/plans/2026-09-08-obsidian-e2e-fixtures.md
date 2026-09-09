@@ -27,7 +27,7 @@ Fixture 位于 `tests/VaultDelta.EndToEnd.Tests/Fixtures/ObsidianVault/`，分�
 - 插件：`.obsidian/plugins/sample/main.js` 和 `manifest.json` 修改。
 - 主题：`.obsidian/themes/Local Theme/theme.css` 新增。
 - Obsidian 设置：`.obsidian/app.json` 保持不变。
-- 排除项：`.trash/Discarded.md` 和 `.obsidian/workspace.json` 故意发生变化，但不得进入快照或补丁。
+- 全文件项：`.trash/Discarded.md` 和 `.obsidian/workspace.json` 故意发生变化，必须进入快照与补丁。
 
 二进制附件在仓库中保存为 `.base64` 蓝图，测试物化时解码并去掉后缀。这使附件字节可审查，也避免文本补丁工具直接写二进制文件。仓库 `.gitattributes` 固定文本为 LF，因此 Markdown、JSON、JavaScript 和 CSS 在 Windows/macOS checkout 后保持相同内容哈希。
 
@@ -37,13 +37,13 @@ Fixture 位于 `tests/VaultDelta.EndToEnd.Tests/Fixtures/ObsidianVault/`，分�
 
 1. `LocalFileSystem`、`Sha256ContentHasher` 和 `SnapshotScanner` 扫描两个真实目录。
 2. `CompareWorkflow` 对各类资产产生预期 Added、Modified、Deleted 和 Renamed。
-3. `.trash/**`、`.obsidian/workspace.json` 不进入 inventory 和 DiffSet。
+3. `.trash/**`、`.obsidian/workspace.json` 进入 inventory 和 DiffSet。
 4. `PatchManifest.FromDiff` 形成完整操作序列。
 5. `DirectoryPackageWriter` 和 `ZipPackageWriter` 生成最终 ZIP。
 6. `ZipPackageReader` 和 `PackageInspector` 重新检查包内容。
-7. ZIP 包含插件、主题和 PNG 载荷，不包含 Trash 或 workspace 状态。
+7. ZIP 包含插件、主题、PNG、Trash 和 workspace 状态载荷。
 8. `ApplyWorkflow` 在基线副本上执行事务，应用后的受管理文件树逐字节等于 Target。
-9. 排除目录在应用期间保持本地原值，不被目标快照中的变化覆盖。
+9. 应用后全部受管理文件逐字节等于目标快照，回滚后逐字节恢复基线。
 10. `RollbackWorkflow` 使用 Journal 和备份恢复，受管理文件树逐字节等于原 Baseline。
 
 ## 跨平台黄金值

@@ -26,12 +26,13 @@ public sealed class LargeVaultPerformanceTests : IDisposable
 
         stopwatch.Stop();
         Assert.Equal(changedFileCount + 1, result.Summary.AddedCount);
-        Assert.Equal(changedFileCount + 1, result.Summary.ModifiedCount);
+        Assert.Equal(changedFileCount + 2, result.Summary.ModifiedCount);
         Assert.Equal(changedFileCount, result.Summary.DeletedCount);
         Assert.Equal(0, result.Summary.RenamedCount);
-        Assert.Equal((changedFileCount * 2) + 1, result.Summary.TransferFileCount);
-        Assert.DoesNotContain(result.Differences.Entries, entry =>
-            (entry.TargetPath ?? entry.BasePath)!.Value.StartsWith(".trash", StringComparison.Ordinal));
+        Assert.Equal((changedFileCount * 2) + 2, result.Summary.TransferFileCount);
+        Assert.Contains(result.Differences.Entries, entry =>
+            (entry.TargetPath ?? entry.BasePath)!.Value == ".trash/ignored.md"
+            && entry.Type == VaultDelta.Domain.Diffs.DiffEntryType.Modified);
         TimeSpan regressionCeiling = fileCount <= 5_000
             ? TimeSpan.FromMinutes(2)
             : TimeSpan.FromMinutes(15);

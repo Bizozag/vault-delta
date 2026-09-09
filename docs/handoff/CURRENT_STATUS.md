@@ -9,8 +9,7 @@ Vault Delta 用于比较两个大型 Obsidian 库快照，生成只包含新增�
 已经确认且不应在后续实现中无故改变的决策：
 
 - C#、.NET 10 LTS、Avalonia 12，Windows/macOS 共用核心与桌面 UI。
-- 默认包含 `.obsidian/plugins/**` 和 `.obsidian/themes/**`。
-- 默认排除 `.trash/**` 和 Obsidian workspace 状态文件。
+- 默认纳管全部普通文件，包括 `.obsidian/**`、`.trash/**` 和平台元数据文件，不提供特殊目录开关。
 - 默认补丁格式为 ZIP，同时保留目录 writer 供检查和调试。
 - MVP 不增加公开 CLI；构建和发布脚本不属于面向最终用户的 CLI 产品面。
 - Windows MVP 为 `win-x64` 自包含便携 ZIP，不做 MSI/MSIX。
@@ -49,12 +48,19 @@ c320c46 feat: rollback interrupted patch applications
 | Task 25 macOS 签名/公证/DMG | 未开始 | 需要 Apple Developer 证书和公证凭据 |
 | Task 26 发布候选验收文档 | 未开始 | 依赖真实 Windows 10/11、Apple Silicon/Intel 验收结果 |
 
+### 2026-09-09 界面与默认范围迭代
+
+- 设置页和侧栏“本地模式”状态块已移除。
+- 默认规则改为空规则，全部普通文件参与扫描、补丁、应用与恢复。
+- ZIP 生成现在展示准备、复制校验、写清单、压缩、重新验证、发布阶段及确定百分比和当前路径。
+- 旧的 Windows `0.1.0` 候选包构建于该迭代之前，只能用于历史对照；合入本次提交后必须重新打包并记录新哈希。
+
 ## 4. 最近验证结果
 
 ### 完整测试
 
 - Release build：0 警告、0 错误。
-- 测试：188/188 通过。
+- 测试：190/190 通过。
 - 固定 E2E：补丁生成、检查、应用和回滚均覆盖。
 
 ### 大库性能基线

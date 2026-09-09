@@ -35,9 +35,7 @@
 ### 过滤
 
 - include/exclude 优先级。
-- Obsidian workspace 文件默认排除。
-- `.obsidian/plugins/**` 与 `.obsidian/themes/**` 默认包含。
-- `.trash/**` 默认排除。
+- 默认规则为空，Obsidian workspace、插件、主题、`.trash/**` 与平台元数据文件都参与快照。
 - 两次扫描规则不一致时阻断。
 
 ### 打包

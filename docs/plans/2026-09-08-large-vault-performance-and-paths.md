@@ -20,7 +20,7 @@
 - Deleted：仅存在于 Baseline。
 - Added：仅存在于 Target。
 - 一个 `.obsidian/plugins/**` 修改，用于确认插件仍属于受管理范围。
-- 一个 `.trash/**` 修改，用于确认回收站始终排除。
+- 一个 `.trash/**` 修改；2026-09-09 起用于确认回收站也进入全文件增量。
 
 文件物化采用有限并行度，避免单线程创建小文件成为主要测量噪声。CompareWorkflow 计时只覆盖两个真实目录的枚举、哈希、稳定性复查、inventory 构造、Diff 分类和摘要统计。
 
@@ -69,7 +69,7 @@ Diff 条目：101,206
 | Windows 长路径 | 创建完整路径超过传统 `MAX_PATH` 260 字符的文件，并由生产扫描器读取 |
 | 大小写碰撞 | 当卷可以同时存储 `Note.md` 与 `note.md` 时，portable inventory 必须拒绝 |
 | Unicode NFC/NFD | 当卷可以同时存储组合与分解形式时，NFC 规范化后碰撞必须拒绝 |
-| `.trash/**` | 合成库中的变化不进入 DiffSet |
+| `.trash/**` | 合成库中的变化进入 Modified 和传输统计 |
 | 插件目录 | `.obsidian/plugins/**` 的变化必须进入 Modified 和传输统计 |
 
 在大小写不敏感或规范化文件名的卷上，无法物化两个独立文件时，测试验证由卷本身阻止该碰撞；在可以物化的卷上，由 `SnapshotInventory` 的 portable comparer 阻止生成不可跨平台传输的快照。

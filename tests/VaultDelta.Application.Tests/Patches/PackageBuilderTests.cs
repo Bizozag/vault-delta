@@ -13,7 +13,7 @@ public sealed class PackageBuilderTests
         PackageBuilder builder = new(writer);
         PatchManifest manifest = EmptyManifest();
 
-        await builder.BuildAsync(manifest, "/source", "/output", CancellationToken.None);
+        await builder.BuildAsync(manifest, "/source", "/output", cancellationToken: CancellationToken.None);
 
         Assert.Same(manifest, writer.Manifest);
         Assert.Equal("/source", writer.SourceRoot);
@@ -29,7 +29,7 @@ public sealed class PackageBuilderTests
         await cancellation.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await builder.BuildAsync(EmptyManifest(), "/source", "/output", cancellation.Token));
+            await builder.BuildAsync(EmptyManifest(), "/source", "/output", cancellationToken: cancellation.Token));
 
         Assert.Null(writer.Manifest);
     }
@@ -58,6 +58,7 @@ public sealed class PackageBuilderTests
             PatchManifest manifest,
             string sourceRoot,
             string outputPath,
+            IProgress<PackageBuildProgress>? progress = null,
             CancellationToken cancellationToken = default)
         {
             Manifest = manifest;

@@ -24,7 +24,7 @@ public sealed class PackageReaderAndZipWriterTests : IDisposable
         string output = Path.Combine(_root, "directory-patch");
         Sha256ContentHasher hasher = new();
         DirectoryPackageWriter writer = new(hasher);
-        await writer.WriteAsync(manifest, source, output, CancellationToken.None);
+        await writer.WriteAsync(manifest, source, output, cancellationToken: CancellationToken.None);
         PackageInspector inspector = new(new DirectoryPackageReader(hasher));
 
         PackageInspectionResult result = await inspector.InspectAsync(output, CancellationToken.None);
@@ -41,12 +41,37 @@ public sealed class PackageReaderAndZipWriterTests : IDisposable
         PackageInspector inspector = new(new ZipPackageReader());
         ZipPackageWriter writer = new(new DirectoryPackageWriter(hasher), inspector);
 
-        await writer.WriteAsync(manifest, source, output, CancellationToken.None);
+        await writer.WriteAsync(manifest, source, output, cancellationToken: CancellationToken.None);
         PackageInspectionResult result = await inspector.InspectAsync(output, CancellationToken.None);
 
         Assert.True(File.Exists(output));
         Assert.Equal(1, result.VerifiedPayloadCount);
         Assert.Empty(Directory.GetFileSystemEntries(_root, "*.incomplete-*"));
+    }
+
+    [Fact]
+    public async Task Zip_writer_reports_copy_compress_verify_and_completion_progress()
+    {
+        (string source, PatchManifest manifest) = await CreateSourceAndManifestAsync("progress");
+        string output = Path.Combine(_root, "progress.zip");
+        Sha256ContentHasher hasher = new();
+        PackageInspector inspector = new(new ZipPackageReader());
+        ZipPackageWriter writer = new(new DirectoryPackageWriter(hasher), inspector);
+        List<PackageBuildProgress> reports = [];
+
+        await writer.WriteAsync(
+            manifest,
+            source,
+            output,
+            new InlineProgress<PackageBuildProgress>(reports.Add),
+            CancellationToken.None);
+
+        Assert.Contains(reports, item => item.Stage == PackageBuildStage.CopyingPayloads);
+        Assert.Contains(reports, item => item.Stage == PackageBuildStage.Compressing && item.CurrentPath == "files/note.md");
+        Assert.Contains(reports, item => item.Stage == PackageBuildStage.Verifying);
+        Assert.Equal(PackageBuildStage.Completed, reports[^1].Stage);
+        Assert.Equal(100, reports[^1].Percentage);
+        Assert.All(reports.Zip(reports.Skip(1)), pair => Assert.True(pair.First.Percentage <= pair.Second.Percentage));
     }
 
     [Fact]
@@ -71,7 +96,7 @@ public sealed class PackageReaderAndZipWriterTests : IDisposable
         string directory = Path.Combine(_root, "duplicate-directory");
         string zipPath = Path.Combine(_root, "duplicate.zip");
         Sha256ContentHasher hasher = new();
-        await new DirectoryPackageWriter(hasher).WriteAsync(manifest, source, directory, CancellationToken.None);
+        await new DirectoryPackageWriter(hasher).WriteAsync(manifest, source, directory, cancellationToken: CancellationToken.None);
         ZipFile.CreateFromDirectory(directory, zipPath);
         using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Update))
         {
@@ -101,7 +126,7 @@ public sealed class PackageReaderAndZipWriterTests : IDisposable
         string directory = Path.Combine(_root, "tampered-directory");
         string zipPath = Path.Combine(_root, "tampered.zip");
         Sha256ContentHasher hasher = new();
-        await new DirectoryPackageWriter(hasher).WriteAsync(manifest, source, directory, CancellationToken.None);
+        await new DirectoryPackageWriter(hasher).WriteAsync(manifest, source, directory, cancellationToken: CancellationToken.None);
         await File.WriteAllTextAsync(Path.Combine(directory, "files", "note.md"), "tampered", CancellationToken.None);
         ZipFile.CreateFromDirectory(directory, zipPath);
 
@@ -116,7 +141,7 @@ public sealed class PackageReaderAndZipWriterTests : IDisposable
         string directory = Path.Combine(_root, "extra-directory");
         string zipPath = Path.Combine(_root, "extra.zip");
         Sha256ContentHasher hasher = new();
-        await new DirectoryPackageWriter(hasher).WriteAsync(manifest, source, directory, CancellationToken.None);
+        await new DirectoryPackageWriter(hasher).WriteAsync(manifest, source, directory, cancellationToken: CancellationToken.None);
         await File.WriteAllTextAsync(Path.Combine(directory, "extra.exe"), "unexpected", CancellationToken.None);
         ZipFile.CreateFromDirectory(directory, zipPath);
 
@@ -150,5 +175,10 @@ public sealed class PackageReaderAndZipWriterTests : IDisposable
     {
         Directory.Delete(_root, recursive: true);
         GC.SuppressFinalize(this);
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }

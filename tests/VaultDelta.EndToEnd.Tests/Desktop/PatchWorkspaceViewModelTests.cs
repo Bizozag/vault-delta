@@ -166,7 +166,7 @@ public sealed class PatchWorkspaceViewModelTests
         public int ApplyCalls { get; private set; }
         public int RollbackCalls { get; private set; }
 
-        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) =>
             InspectionError is null

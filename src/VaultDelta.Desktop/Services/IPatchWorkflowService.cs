@@ -10,6 +10,7 @@ public interface IPatchWorkflowService
         CompareResult comparison,
         string sourceRoot,
         string outputPath,
+        IProgress<PackageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     ValueTask<PackageInspectionResult> InspectAsync(

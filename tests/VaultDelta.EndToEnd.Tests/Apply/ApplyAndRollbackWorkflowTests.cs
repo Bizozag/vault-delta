@@ -34,7 +34,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         await CreateTargetAsync(source);
         Dictionary<string, string> baseline = ReadTree(vault);
         PatchManifest manifest = await CreateManifestAsync(vault, source);
-        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
 
         ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
             new ApplyRequest(package, vault, transactions, "round-trip"),
@@ -78,7 +78,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         PatchManifest manifest = Manifest(
             "fault-patch",
             PatchOperation.Modify(10, RelativePath.Parse("note.md"), oldFingerprint, newFingerprint));
-        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
 
         ApplyResult result = await CreateApplyWorkflow(new ThrowingFaultInjector(faultPoint, 10)).ApplyAsync(
             new ApplyRequest(package, vault, transactions, $"fault-{faultPoint}"),
@@ -108,7 +108,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         PatchManifest manifest = Manifest(
             "retry-patch",
             PatchOperation.Add(10, RelativePath.Parse("added.md"), fingerprint));
-        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
         ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
             new ApplyRequest(package, vault, transactions, "retry"),
             CancellationToken.None);
@@ -147,7 +147,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
                 RelativePath.Parse("note.md"),
                 new FileFingerprint(6, DateTimeOffset.UnixEpoch, new string('a', 64)),
                 await FingerprintAsync(Path.Combine(source, "note.md"))));
-        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
 
         ApplyResult result = await CreateApplyWorkflow().ApplyAsync(
             new ApplyRequest(package, vault, transactions, "conflict"),
@@ -175,7 +175,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
             PatchOperation.Add(10, RelativePath.Parse("note.md"), fingerprint));
         PackageInspector zipInspector = new(new ZipPackageReader());
         await new ZipPackageWriter(new DirectoryPackageWriter(_hasher), zipInspector)
-            .WriteAsync(manifest, source, zip, CancellationToken.None);
+            .WriteAsync(manifest, source, zip, cancellationToken: CancellationToken.None);
         LocalTargetStateReader stateReader = new(_hasher);
         ApplyWorkflow workflow = new(
             zipInspector,
@@ -215,7 +215,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
                 RelativePath.Parse("note.md"),
                 await FingerprintAsync(Path.Combine(vault, "note.md")),
                 await FingerprintAsync(Path.Combine(source, "note.md"))));
-        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
         ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
             new ApplyRequest(package, vault, transactions, "missing-backup"),
             CancellationToken.None);
@@ -246,7 +246,7 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
                 10,
                 RelativePath.Parse("note.md"),
                 await FingerprintAsync(Path.Combine(source, "note.md"))));
-        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, CancellationToken.None);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
 
         ApplyWorkflow workflow = CreateApplyWorkflow(capabilityValidator: new RejectingCapabilityValidator());
 

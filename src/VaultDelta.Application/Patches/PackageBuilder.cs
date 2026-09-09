@@ -12,6 +12,7 @@ public sealed class PackageBuilder(IPatchPackageWriter packageWriter)
         PatchManifest manifest,
         string sourceRoot,
         string outputPath,
+        IProgress<PackageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -19,6 +20,6 @@ public sealed class PackageBuilder(IPatchPackageWriter packageWriter)
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return _packageWriter.WriteAsync(manifest, sourceRoot, outputPath, cancellationToken);
+        return _packageWriter.WriteAsync(manifest, sourceRoot, outputPath, progress, cancellationToken);
     }
 }

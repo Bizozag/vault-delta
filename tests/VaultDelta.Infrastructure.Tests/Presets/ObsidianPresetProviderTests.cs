@@ -11,7 +11,8 @@ public sealed class ObsidianPresetProviderTests
         var rules = ObsidianPresetProvider.LoadDefault();
 
         Assert.Equal("obsidian-default-v1", rules.Name);
-        Assert.False(rules.Evaluate(VaultDelta.Domain.Paths.RelativePath.Parse(".trash/deleted.md")).IsIncluded);
+        Assert.Empty(rules.Rules);
+        Assert.True(rules.Evaluate(VaultDelta.Domain.Paths.RelativePath.Parse(".trash/deleted.md")).IsIncluded);
         Assert.True(rules.Evaluate(VaultDelta.Domain.Paths.RelativePath.Parse(".obsidian/plugins/test/main.js")).IsIncluded);
         Assert.Equal(ObsidianDefaultRules.Create().RulesId, rules.RulesId);
     }

@@ -87,19 +87,7 @@ MVP 不提供公开 CLI。Application 工作流不依赖 UI，后续只有在出
 
 MVP 预设建议：
 
-```text
-默认排除：
-  Thumbs.db
-  Desktop.ini
-  .DS_Store
-  .trash/**
-  .obsidian/workspace.json
-  .obsidian/workspace-mobile.json
-
-默认包含：
-  .obsidian/plugins/**
-  .obsidian/themes/**
-```
+默认规则集合为空，所有普通文件均参与快照和增量补丁。安全路径、链接/重解析点和可移植路径碰撞检查不属于过滤规则，始终启用。
 
 验证边界：规则解析失败时不得静默忽略；界面必须展示实际生效规则和被排除数量。
 

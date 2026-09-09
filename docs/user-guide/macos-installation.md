@@ -29,7 +29,7 @@ Task 24 预览包尚未进行 Developer ID 签名和 Apple 公证。只应运行
 3. 审核新增、修改、删除、重命名和风险项。
 4. 生成 ZIP 补丁，并只传输这个补丁文件到目标 Mac。
 
-`.obsidian/plugins/**` 和 `.obsidian/themes/**` 默认包含；`.trash/**` 和 Obsidian workspace 状态默认排除。
+默认比较全部普通文件，包括 `.obsidian/**`、`.trash/**` 和平台元数据文件；界面不提供特殊目录开关。路径与文件系统安全检查始终启用。
 
 ## 应用补丁和恢复
 

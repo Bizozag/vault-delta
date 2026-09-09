@@ -35,18 +35,13 @@ internal sealed class ObsidianVaultFixture : IDisposable
         foreach (string directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories))
         {
             string relative = Relative(root, directory);
-            if (IsExcluded(relative))
-            {
-                continue;
-            }
-
             result[$"D:{relative}"] = [];
         }
 
         foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
         {
             string relative = Relative(root, file);
-            if (IsExcluded(relative) || relative == ".vaultdelta.lock")
+            if (relative == ".vaultdelta.lock")
             {
                 continue;
             }
@@ -105,12 +100,6 @@ internal sealed class ObsidianVaultFixture : IDisposable
 
     private static string Relative(string root, string path) =>
         Path.GetRelativePath(root, path).Replace('\\', '/');
-
-    private static bool IsExcluded(string relative) =>
-        relative.Equals(".trash", StringComparison.Ordinal)
-        || relative.StartsWith(".trash/", StringComparison.Ordinal)
-        || relative.Equals(".obsidian/workspace.json", StringComparison.Ordinal)
-        || relative.Equals(".obsidian/workspace-mobile.json", StringComparison.Ordinal);
 
     public void Dispose()
     {

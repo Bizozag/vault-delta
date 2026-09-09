@@ -17,7 +17,7 @@
     <Grid RowDefinitions="*,34" Background="#F3F1EC">
         <Grid Grid.Row="0" ColumnDefinitions="248,*">
             <Border Grid.Column="0" Background="#172B27" Padding="18,22,18,18">
-                <Grid RowDefinitions="Auto,36,*,Auto">
+                <Grid RowDefinitions="Auto,36,*">
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
                         <Border Width="40" Height="40" CornerRadius="11" Background="#1DAA91">
                             <Path Width="23"
@@ -58,29 +58,7 @@
                                 </StackPanel>
                             </Grid>
                         </Button>
-
-                        <Button x:Name="SettingsNavigation" Classes="nav" Classes.active="{Binding IsSettingsSelected}"
-                                Command="{Binding NavigateCommand}" CommandParameter="Settings"
-                                AutomationProperties.Name="设置">
-                            <Grid ColumnDefinitions="28,*">
-                                <TextBlock Grid.Column="0" Text="⚙" FontSize="17" VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="设置" FontWeight="SemiBold" />
-                                    <TextBlock Text="范围与存储" FontSize="11" Opacity="0.7" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
                     </StackPanel>
-
-                    <Border Grid.Row="3" Padding="12" CornerRadius="10" Background="#203833" BorderBrush="#315048" BorderThickness="1">
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <Border Width="8" Height="8" CornerRadius="4" Background="#48D3A9" VerticalAlignment="Top" Margin="0,5,0,0" />
-                            <StackPanel Grid.Column="1" Spacing="2">
-                                <TextBlock Text="本地模式" FontSize="12" FontWeight="SemiBold" Foreground="#E4F1ED" />
-                                <TextBlock Text="无网络 · 无遥测" FontSize="11" Foreground="#8FA9A2" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
                 </Grid>
             </Border>
 
@@ -139,14 +117,14 @@
                                     </Grid>
 
                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-                                        <TextBlock Text="包含 .obsidian/plugins/** 与 themes/** · 排除 .trash/**" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                        <TextBlock Text="比较全部文件；路径与文件系统安全检查始终启用" Classes="muted" FontSize="11" VerticalAlignment="Center" />
                                         <Button Grid.Column="1" x:Name="CancelCompareButton" Content="取消" Classes="secondary" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
                                         <Button Grid.Column="2" x:Name="StartCompareButton" Content="开始比较" Classes="primary" Command="{Binding CompareCommand}" />
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <Border x:Name="ScanningPanel" Classes="card" Padding="22" IsVisible="{Binding IsBusy}">
+                            <Border x:Name="ScanningPanel" Classes="card" Padding="22" IsVisible="{Binding IsComparing}">
                                 <Grid ColumnDefinitions="*,220" ColumnSpacing="28">
                                     <StackPanel Spacing="10">
                                         <TextBlock Text="{Binding StatusText}" Classes="sectionTitle" />
@@ -157,6 +135,17 @@
                                         <TextBlock Text="已处理条目" Classes="muted" FontSize="11" />
                                         <TextBlock Text="{Binding ProcessedEntries}" FontSize="28" FontWeight="SemiBold" Foreground="#087C6A" />
                                     </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border x:Name="PatchBuildProgressPanel" Classes="card" Padding="22" IsVisible="{Binding IsGeneratingPatch}">
+                                <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding PatchBuildProgressText}" Classes="sectionTitle" />
+                                        <TextBlock Grid.Column="1" Text="{Binding PatchBuildProgressPercentage, StringFormat={}{0}%}" Foreground="#087C6A" FontSize="22" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{Binding PatchBuildProgressPercentage}" Height="7" />
+                                    <TextBlock Grid.Row="2" Text="{Binding PatchBuildCurrentPath}" Classes="muted" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
                                 </Grid>
                             </Border>
 
@@ -361,62 +350,6 @@
                             <Border x:Name="RollbackResultPanel" Classes="card" Padding="20" IsVisible="{Binding ShowRollbackResult}">
                                 <TextBlock Text="恢复完成，所有可逆操作已逐项校验。" Foreground="#075F52" FontWeight="SemiBold" HorizontalAlignment="Center" />
                             </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <ScrollViewer x:Name="SettingsPage" IsVisible="{Binding IsSettingsSelected}" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="34,30,34,42" Spacing="18" MaxWidth="920" HorizontalAlignment="Left">
-                            <Border Classes="card" Padding="24" Width="900">
-                                <StackPanel Spacing="18">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="默认受管理范围" Classes="sectionTitle" />
-                                        <TextBlock Text="这些默认值会用于新的比较会话，正式生成前仍会展示实际生效规则。" Classes="muted" />
-                                    </StackPanel>
-                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,1,Auto" RowSpacing="14">
-                                        <StackPanel Grid.Row="0" Spacing="3">
-                                            <TextBlock Text="包含 Obsidian 插件与主题" FontWeight="SemiBold" />
-                                            <TextBlock Text=".obsidian/plugins/** · .obsidian/themes/**" Classes="muted" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
-                                        </StackPanel>
-                                        <ToggleSwitch Grid.Row="0" Grid.Column="1" IsChecked="True" IsEnabled="False" OnContent="包含" OffContent="排除" />
-                                        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#E4E5E0" />
-                                        <StackPanel Grid.Row="2" Spacing="3">
-                                            <TextBlock Text="排除 Obsidian 回收站" FontWeight="SemiBold" />
-                                            <TextBlock Text=".trash/**" Classes="muted" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
-                                        </StackPanel>
-                                        <ToggleSwitch Grid.Row="2" Grid.Column="1" IsChecked="True" IsEnabled="False" OnContent="排除" OffContent="包含" />
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Classes="card" Padding="24" Width="900">
-                                <StackPanel Spacing="18">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="补丁与事务" Classes="sectionTitle" />
-                                        <TextBlock Text="MVP 使用安全的跨平台默认值。高级选项将在实际工作流接入后开放。" Classes="muted" />
-                                    </StackPanel>
-                                    <Grid ColumnDefinitions="*,220" RowDefinitions="Auto,1,Auto" RowSpacing="14">
-                                        <StackPanel Grid.Row="0" Spacing="3">
-                                            <TextBlock Text="默认补丁格式" FontWeight="SemiBold" />
-                                            <TextBlock Text="ZIP 便于跨设备传输；目录形式保留用于检查和调试。" Classes="muted" FontSize="12" />
-                                        </StackPanel>
-                                        <ComboBox Grid.Row="0" Grid.Column="1" SelectedIndex="0" IsEnabled="False">
-                                            <ComboBoxItem Content="ZIP（推荐）" />
-                                            <ComboBoxItem Content="目录" />
-                                        </ComboBox>
-                                        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#E4E5E0" />
-                                        <StackPanel Grid.Row="2" Spacing="3">
-                                            <TextBlock Text="命令行应用模式" FontWeight="SemiBold" />
-                                            <TextBlock Text="MVP 不提供公开 CLI；核心工作流保持 UI 无关。" Classes="muted" FontSize="12" />
-                                        </StackPanel>
-                                        <Border Grid.Row="2" Grid.Column="1" Background="#F1F2EE" CornerRadius="8" Padding="12,8">
-                                            <TextBlock Text="未启用" HorizontalAlignment="Center" Foreground="#68736F" FontWeight="SemiBold" />
-                                        </Border>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
-
-                            <TextBlock Text="Vault Delta 0.1 · .NET 10 · Avalonia 12 · Windows / macOS"
-                                       Classes="muted" FontSize="11" Margin="4,2,0,0" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>

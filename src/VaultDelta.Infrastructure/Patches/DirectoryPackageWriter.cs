@@ -1,5 +1,6 @@
 using System.Text;
 using VaultDelta.Application.Abstractions;
+using VaultDelta.Application.Patches;
 using VaultDelta.Domain.Patches;
 
 namespace VaultDelta.Infrastructure.Patches;
@@ -13,12 +14,14 @@ public sealed class DirectoryPackageWriter(IContentHasher contentHasher) : IPatc
         PatchManifest manifest,
         string sourceRoot,
         string outputPath,
+        IProgress<PackageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new PackageBuildProgress(PackageBuildStage.Preparing, 0, 0, 0));
 
         string canonicalSource = Path.GetFullPath(sourceRoot);
         string canonicalOutput = Path.GetFullPath(outputPath);
@@ -48,7 +51,8 @@ public sealed class DirectoryPackageWriter(IContentHasher contentHasher) : IPatc
         try
         {
             Directory.CreateDirectory(stagingPath);
-            await CopyPayloadsAsync(manifest, canonicalSource, stagingPath, cancellationToken).ConfigureAwait(false);
+            await CopyPayloadsAsync(manifest, canonicalSource, stagingPath, cancellationToken, progress).ConfigureAwait(false);
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.WritingMetadata, 85, 0, 0, "manifest.json"));
             await File.WriteAllBytesAsync(
                 Path.Combine(stagingPath, "manifest.json"),
                 PatchManifestJson.Serialize(manifest),
@@ -60,6 +64,7 @@ public sealed class DirectoryPackageWriter(IContentHasher contentHasher) : IPatc
                 cancellationToken).ConfigureAwait(false);
 
             Directory.Move(stagingPath, canonicalOutput);
+            progress?.Report(new PackageBuildProgress(PackageBuildStage.Completed, 100, 0, 0));
         }
         catch
         {
@@ -76,10 +81,13 @@ public sealed class DirectoryPackageWriter(IContentHasher contentHasher) : IPatc
         PatchManifest manifest,
         string sourceRoot,
         string stagingPath,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<PackageBuildProgress>? progress)
     {
-        foreach (PatchOperation operation in manifest.Operations.Where(item => item.PayloadPath is not null))
+        PatchOperation[] payloads = manifest.Operations.Where(item => item.PayloadPath is not null).ToArray();
+        for (int index = 0; index < payloads.Length; index++)
         {
+            PatchOperation operation = payloads[index];
             cancellationToken.ThrowIfCancellationRequested();
             string sourcePath = ResolveWithin(sourceRoot, operation.TargetPath!.Value);
             string payloadPath = ResolveWithin(stagingPath, operation.PayloadPath!.Value);
@@ -101,6 +109,15 @@ public sealed class DirectoryPackageWriter(IContentHasher contentHasher) : IPatc
             {
                 throw new InvalidDataException($"Payload verification failed: {operation.TargetPath}.");
             }
+
+            int processed = index + 1;
+            int percentage = 5 + (int)Math.Round(processed * 75d / Math.Max(payloads.Length, 1));
+            progress?.Report(new PackageBuildProgress(
+                PackageBuildStage.CopyingPayloads,
+                percentage,
+                processed,
+                payloads.Length,
+                operation.TargetPath?.Value));
         }
     }
 

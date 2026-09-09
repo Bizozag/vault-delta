@@ -117,7 +117,7 @@ Steps:
 - Create: `src/VaultDelta.Infrastructure/Presets/obsidian-default-v1.json`
 - Test: `tests/VaultDelta.Domain.Tests/Rules/`
 
-测试 include/exclude 优先级、规则解析失败和实际生效统计；固定 `.obsidian/plugins/**`、`.obsidian/themes/**` 默认包含，`.trash/**` 默认排除。提交：`feat: add snapshot filtering rules`。
+测试 include/exclude 优先级、规则解析失败和实际生效统计。2026-09-09 后续迭代将默认 preset 改为空规则，全部普通文件参与比较。提交：`feat: add snapshot filtering rules`。
 
 ### Task 8：实现 Diff Engine
 
@@ -264,7 +264,7 @@ Steps:
 
 ### Task 18：应用壳与导航
 
-实现比较、补丁历史/检查、设置三个页面，与已确认预览保持一致。提交：`feat: add desktop application shell`。
+最初实现比较、补丁历史/检查、设置三个页面；2026-09-09 后续迭代移除设置页，只保留比较与补丁恢复。提交：`feat: add desktop application shell`。
 
 ### Task 19：比较和审核页面
 
