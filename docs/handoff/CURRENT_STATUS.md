@@ -1,6 +1,6 @@
 # Vault Delta 当前交接状态
 
-更新时间：2026-09-08（Asia/Shanghai）
+更新时间：2026-09-09（Asia/Shanghai）
 
 ## 1. 项目目标与固定决策
 
@@ -21,6 +21,8 @@ Vault Delta 用于比较两个大型 Obsidian 库快照，生成只包含新增�
 交接文档生成前的关键提交：
 
 ```text
+96c2c65 feat: support folder and patch drag and drop
+d66849f feat: simplify full-vault workflow and show zip progress
 cfb4f7c build: package macos desktop releases
 0aa15f9 build: package windows desktop release
 3022126 test: establish large vault performance baseline
@@ -33,7 +35,7 @@ c320c46 feat: rollback interrupted patch applications
 3c759c4 feat: apply patches transactionally
 ```
 
-当前主分支为 `main`。截至交接时没有配置 Git remote。交接包因此包含完整 `repository.bundle`，它是跨机器继续开发的首选入口。
+当前主分支为 `main`，远端为 `https://github.com/Bizozag/vault-delta.git`。跨机器继续开发优先克隆 GitHub；离线环境仍可使用交接包中的完整 `repository.bundle`。
 
 ## 3. 已完成阶段
 
@@ -47,20 +49,22 @@ c320c46 feat: rollback interrupted patch applications
 | Task 24 macOS 双架构包 | 完成代码，等待 macOS 环境验收 | 双 RID publish、`.app`、plist、图标、ZIP、CI 包检查与原生架构冒烟 |
 | Task 25 macOS 签名/公证/DMG | 未开始 | 需要 Apple Developer 证书和公证凭据 |
 | Task 26 发布候选验收文档 | 未开始 | 依赖真实 Windows 10/11、Apple Silicon/Intel 验收结果 |
+| Task 27 文件夹与 ZIP 拖放 | 完成并发布 v0.1.1 | 三个文件夹投放区、ZIP 投放区、类型/路径/忙碌状态边界测试 |
 
 ### 2026-09-09 界面与默认范围迭代
 
 - 设置页和侧栏“本地模式”状态块已移除。
 - 默认规则改为空规则，全部普通文件参与扫描、补丁、应用与恢复。
 - ZIP 生成现在展示准备、复制校验、写清单、压缩、重新验证、发布阶段及确定百分比和当前路径。
-- 旧的 Windows `0.1.0` 候选包构建于该迭代之前，只能用于历史对照；合入本次提交后必须重新打包并记录新哈希。
+- 比较页可拖入旧/新快照文件夹；补丁页可拖入 ZIP 补丁和应用目标库文件夹。
+- ZIP 拖入后仍执行完整包检查，目标库拖入后仍需基线 Gate；多选、错误类型、非法路径和忙碌状态拖入会被拒绝。
 
 ## 4. 最近验证结果
 
 ### 完整测试
 
 - Release build：0 警告、0 错误。
-- 测试：190/190 通过。
+- 测试：193/193 通过。
 - 固定 E2E：补丁生成、检查、应用和回滚均覆盖。
 
 ### 大库性能基线
@@ -72,18 +76,18 @@ c320c46 feat: rollback interrupted patch applications
 ### Windows 候选包
 
 ```text
-Commit: 0aa15f96252c6e97525d6498861d045a61f694bf
-Version: 0.1.0
+Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.1
+Commit: 96c2c650782d6f886468b8d555171a34e22d9a7c
+Version: 0.1.1
 RID: win-x64
 Files: 227
-Uncompressed: 214,020,958 bytes
-ZIP: 75,506,719 bytes
-SHA-256: 790259455f489739f96ae074c8335078b48b877df06773939e8d1f1d79e4f0de
+ZIP: 75,509,653 bytes
+SHA-256: 0ce9cce2826c403bc706140844b7bcf6f280767f1080e84e47ba48e50d107416
 gitDirty: false
 signatureStatus: NotSigned
 ```
 
-隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.0-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
+隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.1-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
 
 ### macOS 交叉发布
 
@@ -92,11 +96,10 @@ Windows 开发机已分别执行 `dotnet publish`：
 - `osx-arm64`：222 个文件，约 115,814,065 bytes，主程序为 ARM64 Mach-O。
 - `osx-x64`：222 个文件，约 108,930,483 bytes，主程序为 x86-64 Mach-O。
 
-这只能证明交叉发布和静态文件正确，不能替代 macOS 原生启动、Gatekeeper、签名、公证或 Finder 拖放验收。macOS CI 工作流已加入仓库，但交接时没有配置远程仓库，尚未产生 runner 结果。
+这只能证明交叉发布和静态文件正确，不能替代 macOS 原生启动、Gatekeeper、签名、公证或 Finder 拖放验收。macOS CI 工作流已加入远端仓库，仍需检查 runner 结果并在真实 Mac 验收。
 
 ## 5. 已知边界与风险
 
-- 没有 Git remote；首次接管后应建立可信远程并推送完整历史。
 - Windows 包未签名，SmartScreen 可能提示；必须校验 SHA-256。
 - macOS 包尚未在真实 Mac 上由当前交接流程生成，也未签名、公证或制作 DMG。
 - macOS 最低支持版本仍待真实机器矩阵确认，`Info.plist` 未写入未经验证的最低版本。
