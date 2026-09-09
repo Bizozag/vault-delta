@@ -21,6 +21,7 @@ Vault Delta 用于比较两个大型 Obsidian 库快照，生成只包含新增�
 交接文档生成前的关键提交：
 
 ```text
+3291377 fix: keep zip packaging progress visible
 96c2c65 feat: support folder and patch drag and drop
 d66849f feat: simplify full-vault workflow and show zip progress
 cfb4f7c build: package macos desktop releases
@@ -50,12 +51,15 @@ c320c46 feat: rollback interrupted patch applications
 | Task 25 macOS 签名/公证/DMG | 未开始 | 需要 Apple Developer 证书和公证凭据 |
 | Task 26 发布候选验收文档 | 未开始 | 依赖真实 Windows 10/11、Apple Silicon/Intel 验收结果 |
 | Task 27 文件夹与 ZIP 拖放 | 完成并发布 v0.1.1 | 三个文件夹投放区、ZIP 投放区、类型/路径/忙碌状态边界测试 |
+| Task 28 固定打包进度与状态精简 | 完成并发布 v0.1.2 | 移除无效状态提示，ZIP 进度固定显示且不受页面滚动影响 |
 
 ### 2026-09-09 界面与默认范围迭代
 
 - 设置页和侧栏“本地模式”状态块已移除。
 - 默认规则改为空规则，全部普通文件参与扫描、补丁、应用与恢复。
 - ZIP 生成现在展示准备、复制校验、写清单、压缩、重新验证、发布阶段及确定百分比和当前路径。
+- ZIP 进度面板固定在内容区右下角，即使停留在差异列表底部也持续可见；完成、取消或失败后自动隐藏。
+- 顶部“准备就绪”和底部“未开始事务”提示已移除。
 - 比较页可拖入旧/新快照文件夹；补丁页可拖入 ZIP 补丁和应用目标库文件夹。
 - ZIP 拖入后仍执行完整包检查，目标库拖入后仍需基线 Gate；多选、错误类型、非法路径和忙碌状态拖入会被拒绝。
 
@@ -76,18 +80,18 @@ c320c46 feat: rollback interrupted patch applications
 ### Windows 候选包
 
 ```text
-Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.1
-Commit: 96c2c650782d6f886468b8d555171a34e22d9a7c
-Version: 0.1.1
+Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.2
+Commit: 3291377c0f95780ba1cdd9d38342bf004365456f
+Version: 0.1.2
 RID: win-x64
 Files: 227
-ZIP: 75,509,653 bytes
-SHA-256: 0ce9cce2826c403bc706140844b7bcf6f280767f1080e84e47ba48e50d107416
+ZIP: 75,509,624 bytes
+SHA-256: 0a8cc6950b41a2177d4a68f966642d7553ab9d8a0103c3ba4cb9e5df026ad231
 gitDirty: false
 signatureStatus: NotSigned
 ```
 
-隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.1-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
+隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.2-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
 
 ### macOS 交叉发布
 
@@ -116,6 +120,7 @@ Windows 开发机已分别执行 `dotnet publish`：
 - 测试策略：`docs/testing-strategy.md`
 - Windows 发布记录：`docs/plans/2026-09-08-windows-portable-release.md`
 - macOS Task 24 计划：`docs/plans/2026-09-08-macos-dual-architecture-release.md`
+- 固定打包进度设计：`docs/plans/2026-09-09-fixed-package-progress-design.md`
 - Windows 使用指南：`docs/user-guide/windows-installation.md`
 - macOS 使用指南：`docs/user-guide/macos-installation.md`
 - Windows 打包：`scripts/publish-windows.ps1`
