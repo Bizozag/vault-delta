@@ -38,6 +38,30 @@ public sealed class CompareWorkspaceViewModelTests
     }
 
     [Fact]
+    public void Dropped_folders_fill_each_compare_slot_and_invalid_paths_are_ignored()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"vaultdelta-drop-{Guid.NewGuid():N}");
+        string baseline = Directory.CreateDirectory(Path.Combine(root, "baseline")).FullName;
+        string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+        try
+        {
+            using CompareWorkspaceViewModel viewModel = new(new QueueFolderPicker(), new ImmediateCompareService(CreateResult()));
+
+            Assert.True(viewModel.SetDroppedBaselinePath(baseline));
+            Assert.True(viewModel.SetDroppedTargetPath(target));
+            Assert.False(viewModel.SetDroppedTargetPath(Path.Combine(root, "missing")));
+
+            Assert.Equal(baseline, viewModel.BaselinePath);
+            Assert.Equal(target, viewModel.TargetPath);
+            Assert.True(viewModel.CanCompare);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Running_comparison_can_be_cancelled_without_partial_result()
     {
         BlockingCompareService service = new();

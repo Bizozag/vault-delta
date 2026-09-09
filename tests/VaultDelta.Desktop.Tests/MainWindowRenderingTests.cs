@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using VaultDelta.Application.Compare;
@@ -36,6 +37,11 @@ public sealed class MainWindowRenderingTests
         Assert.True(window.Bounds.Width >= 1024);
         Assert.True(window.Bounds.Height >= 680);
         Assert.NotNull(window.FindControl<Button>("CompareNavigation"));
+        Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("BaselineDropZone")!));
+        Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("TargetDropZone")!));
+        Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchPackageDropZone")!));
+        Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchTargetDropZone")!));
+        Assert.Equal("v0.1.1", ((MainWindowViewModel)window.DataContext!).VersionText);
         window.Close();
     }
 

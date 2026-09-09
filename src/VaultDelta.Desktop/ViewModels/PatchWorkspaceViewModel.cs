@@ -102,6 +102,61 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
             return;
         }
 
+        await InspectPatchAsync(path);
+    }
+
+    public async Task<bool> OpenDroppedPatchAsync(string path)
+    {
+        if (IsBusy || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+
+        if (!File.Exists(fullPath) || !string.Equals(Path.GetExtension(fullPath), ".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        await InspectPatchAsync(fullPath);
+        return HasPackage;
+    }
+
+    public bool SetDroppedTargetPath(string path)
+    {
+        if (IsBusy || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (!Directory.Exists(fullPath))
+            {
+                return false;
+            }
+
+            SetTargetPath(fullPath);
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
+    private async Task InspectPatchAsync(string path)
+    {
         _packagePath = path;
         _inspection = null;
         _errorMessage = string.Empty;
@@ -132,15 +187,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
             return;
         }
 
-        _targetPath = selected;
-        Conflicts.Clear();
-        if (HasPackage)
-        {
-            SetState(PatchWorkspaceState.PackageReady);
-        }
-
-        OnPropertyChanged(nameof(TargetPath));
-        NotifyCommands();
+        SetTargetPath(selected);
     }
 
     public async Task ValidateAsync()
@@ -298,6 +345,19 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         _applyCommand?.NotifyCanExecuteChanged();
         _openJournalCommand?.NotifyCanExecuteChanged();
         _rollbackCommand?.NotifyCanExecuteChanged();
+    }
+
+    private void SetTargetPath(string path)
+    {
+        _targetPath = path;
+        Conflicts.Clear();
+        if (HasPackage)
+        {
+            SetState(PatchWorkspaceState.PackageReady);
+        }
+
+        OnPropertyChanged(nameof(TargetPath));
+        NotifyCommands();
     }
 
     private static string ToUserMessage(Exception exception, string fallback) => exception switch

@@ -95,21 +95,21 @@
                                     </Grid>
 
                                     <Grid ColumnDefinitions="*,26,*" ColumnSpacing="8">
-                                        <Border Grid.Column="0" Padding="14" CornerRadius="10" Background="#F7F8F4" BorderBrush="#DDE0DA" BorderThickness="1">
+                                        <Border Grid.Column="0" x:Name="BaselineDropZone" Padding="14" CornerRadius="10" Background="#F7F8F4" BorderBrush="#DDE0DA" BorderThickness="1">
                                             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-                                                <TextBlock Text="01  旧快照 / 基线" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
+                                                <TextBlock Text="01  旧快照 / 基线 · 可拖入文件夹" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
                                                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                    <TextBox Text="{Binding BaselinePath}" PlaceholderText="选择原始 Obsidian 文件夹" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                    <TextBox Text="{Binding BaselinePath}" PlaceholderText="拖入或选择原始 Obsidian 文件夹" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
                                                     <Button Grid.Column="1" x:Name="SelectBaselineButton" Content="选择…" Classes="secondary" Command="{Binding SelectBaselineCommand}" />
                                                 </Grid>
                                             </Grid>
                                         </Border>
                                         <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#87928E" />
-                                        <Border Grid.Column="2" Padding="14" CornerRadius="10" Background="#F7F8F4" BorderBrush="#DDE0DA" BorderThickness="1">
+                                        <Border Grid.Column="2" x:Name="TargetDropZone" Padding="14" CornerRadius="10" Background="#F7F8F4" BorderBrush="#DDE0DA" BorderThickness="1">
                                             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-                                                <TextBlock Text="02  新快照 / 目标" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
+                                                <TextBlock Text="02  新快照 / 目标 · 可拖入文件夹" FontSize="12" FontWeight="SemiBold" Foreground="#53605C" />
                                                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                    <TextBox Text="{Binding TargetPath}" PlaceholderText="选择更新后的 Obsidian 文件夹" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                    <TextBox Text="{Binding TargetPath}" PlaceholderText="拖入或选择更新后的 Obsidian 文件夹" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
                                                     <Button Grid.Column="1" x:Name="SelectTargetButton" Content="选择…" Classes="secondary" Command="{Binding SelectTargetCommand}" />
                                                 </Grid>
                                             </Grid>
@@ -253,10 +253,12 @@
                                             </Border>
                                         </Grid>
 
-                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                            <TextBox Text="{Binding PackagePath}" IsReadOnly="True" PlaceholderText="尚未选择 .zip 补丁" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
-                                            <Button Grid.Column="1" x:Name="OpenPatchButton" Content="打开补丁" Classes="primary" Command="{Binding OpenPatchCommand}" />
-                                        </Grid>
+                                        <Border x:Name="PatchPackageDropZone" Padding="10" CornerRadius="10" Background="#F7F8F4" BorderBrush="#C9D8D3" BorderThickness="1">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBox Text="{Binding PackagePath}" IsReadOnly="True" PlaceholderText="拖入 .zip 补丁，或点击打开" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                <Button Grid.Column="1" x:Name="OpenPatchButton" Content="打开补丁" Classes="primary" Command="{Binding OpenPatchCommand}" />
+                                            </Grid>
+                                        </Border>
 
                                         <Border IsVisible="{Binding ShowPackageSummary}" CornerRadius="10" Background="#F6F7F3" BorderBrush="#DEE1DB" BorderThickness="1" Padding="14">
                                             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="5">
@@ -267,11 +269,13 @@
                                             </Grid>
                                         </Border>
 
-                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-                                            <TextBox Text="{Binding TargetPath}" IsReadOnly="True" PlaceholderText="选择要更新的 Obsidian 库" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
-                                            <Button Grid.Column="1" Content="选择目标库" Classes="secondary" Command="{Binding SelectTargetCommand}" />
-                                            <Button Grid.Column="2" x:Name="ValidateBaselineButton" Content="检查基线" Classes="secondary" Command="{Binding ValidateCommand}" />
-                                        </Grid>
+                                        <Border x:Name="PatchTargetDropZone" Padding="10" CornerRadius="10" Background="#F7F8F4" BorderBrush="#C9D8D3" BorderThickness="1">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                                                <TextBox Text="{Binding TargetPath}" IsReadOnly="True" PlaceholderText="拖入目标库文件夹，或点击选择" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                <Button Grid.Column="1" Content="选择目标库" Classes="secondary" Command="{Binding SelectTargetCommand}" />
+                                                <Button Grid.Column="2" x:Name="ValidateBaselineButton" Content="检查基线" Classes="secondary" Command="{Binding ValidateCommand}" />
+                                            </Grid>
+                                        </Border>
 
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Text="写入前会验证文件系统能力，并为覆盖和删除项建立独立备份。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
@@ -363,7 +367,7 @@
                     <TextBlock Text="未开始事务" FontSize="11" Foreground="#58635F" />
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="所有操作均在本机完成" FontSize="11" Foreground="#7A837F" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="v0.1.0" FontSize="11" Foreground="#7A837F" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding VersionText}" FontSize="11" Foreground="#7A837F" VerticalAlignment="Center" />
             </Grid>
         </Border>
     </Grid>

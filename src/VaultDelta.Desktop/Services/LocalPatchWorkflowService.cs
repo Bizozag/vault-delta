@@ -30,11 +30,17 @@ public sealed class LocalPatchWorkflowService(
         PatchManifest manifest = PatchManifest.FromDiff(
             patchId,
             DateTimeOffset.UtcNow,
-            "0.1.0",
+            GetGeneratorVersion(),
             comparison.Baseline,
             comparison.Target,
             comparison.Differences);
         return _builder.BuildAsync(manifest, sourceRoot, outputPath, progress, cancellationToken);
+    }
+
+    private static string GetGeneratorVersion()
+    {
+        Version? version = typeof(LocalPatchWorkflowService).Assembly.GetName().Version;
+        return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
     public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) =>

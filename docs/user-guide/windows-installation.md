@@ -34,7 +34,7 @@ SHA256SUMS.txt
 在 PowerShell 中进入 ZIP 所在目录：
 
 ```powershell
-Get-FileHash .\VaultDelta-0.1.0-win-x64.zip -Algorithm SHA256
+Get-FileHash .\VaultDelta-0.1.1-win-x64.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -42,7 +42,7 @@ Get-Content .\SHA256SUMS.txt
 
 ## 安装与首次启动
 
-1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.0-win-x64`。
+1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.1-win-x64`。
 2. 不要只从 ZIP 内直接运行，也不要单独复制 `VaultDelta.exe`；程序需要同目录运行库。
 3. 双击 `VaultDelta.exe`。
 4. 程序以当前用户权限运行，不会请求管理员权限。
@@ -53,7 +53,7 @@ Get-Content .\SHA256SUMS.txt
 ## 创建和传输补丁
 
 1. 准备旧快照和更新后的新快照，二者必须是独立目录，不能互相包含。
-2. 打开“比较快照”，分别选择基线和目标目录。
+2. 打开“比较快照”，分别把基线和目标文件夹拖入对应区域，或使用“选择…”按钮。
 3. 开始比较并审核新增、修改、删除、重命名及风险项。
 4. 选择“生成 ZIP 补丁”。最终 ZIP 只有在 manifest 和所有载荷重新校验成功后才会发布。
 5. 把这个补丁 ZIP 复制到移动硬盘、局域网传输目录或目标 Windows 电脑。无需传输完整 Obsidian 库。
@@ -64,8 +64,8 @@ Get-Content .\SHA256SUMS.txt
 
 1. 建议关闭 Obsidian，或确保没有其他程序正在写入目标库。
 2. 打开“补丁与恢复”。
-3. 选择补丁 ZIP。程序先检查 schema、manifest、载荷、哈希和包路径安全。
-4. 选择目标 Obsidian 库。
+3. 把补丁 ZIP 拖入补丁区域，或点击“打开补丁”。程序先检查 schema、manifest、载荷、哈希和包路径安全。
+4. 把目标 Obsidian 库文件夹拖入目标区域，或点击“选择目标库”。
 5. 执行“检查基线”。有任何冲突时，“应用补丁”保持禁用，目标库不会被写入。
 6. Gate 全部通过后选择“应用补丁”。
 7. 程序会先保存 Journal 和必要备份，再逐项更新并验证。

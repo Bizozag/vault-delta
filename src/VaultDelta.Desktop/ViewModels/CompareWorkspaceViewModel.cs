@@ -149,6 +149,12 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         }
     }
 
+    public bool SetDroppedBaselinePath(string path) =>
+        TrySetDroppedFolder(path, value => BaselinePath = value);
+
+    public bool SetDroppedTargetPath(string path) =>
+        TrySetDroppedFolder(path, value => TargetPath = value);
+
     public async Task CompareAsync()
     {
         if (!CanCompare)
@@ -330,6 +336,30 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
 
     private bool CanSelectCompare() =>
         !string.IsNullOrWhiteSpace(_baselinePath) && !string.IsNullOrWhiteSpace(_targetPath);
+
+    private bool TrySetDroppedFolder(string path, Action<string> assign)
+    {
+        if (IsBusy || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (!Directory.Exists(fullPath))
+            {
+                return false;
+            }
+
+            assign(fullPath);
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
 
     private void SetState(CompareSessionState state)
     {

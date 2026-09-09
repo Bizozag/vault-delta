@@ -8,6 +8,7 @@ namespace VaultDelta.Desktop.ViewModels;
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private ShellPage _currentPage = ShellPage.Compare;
+    private readonly string _versionText = $"v{GetProductVersion()}";
 
     public MainWindowViewModel()
         : this(
@@ -38,6 +39,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public CompareWorkspaceViewModel Compare { get; }
 
     public PatchWorkspaceViewModel Patches { get; }
+
+    public string VersionText => _versionText;
 
     public ShellPage CurrentPage
     {
@@ -91,6 +94,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         throw new ArgumentException("Navigation requires a valid shell page.", nameof(parameter));
+    }
+
+    private static string GetProductVersion()
+    {
+        Version? version = typeof(MainWindowViewModel).Assembly.GetName().Version;
+        return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>

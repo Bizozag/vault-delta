@@ -107,6 +107,58 @@ public sealed class PatchWorkspaceViewModelTests
         Assert.Contains("bad payload", viewModel.ErrorMessage);
     }
 
+    [Fact]
+    public async Task Dropped_zip_is_inspected_and_dropped_folder_becomes_the_target()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"vaultdelta-patch-drop-{Guid.NewGuid():N}");
+        string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+        string patch = Path.Combine(root, "update.ZIP");
+        await File.WriteAllBytesAsync(patch, []);
+        try
+        {
+            FakePatchWorkflow workflow = new() { Inspection = Inspection() };
+            PatchWorkspaceViewModel viewModel = Create(workflow);
+
+            Assert.True(await viewModel.OpenDroppedPatchAsync(patch));
+            Assert.True(viewModel.SetDroppedTargetPath(target));
+
+            Assert.Equal(patch, workflow.InspectedPath);
+            Assert.Equal(patch, viewModel.PackagePath);
+            Assert.Equal(target, viewModel.TargetPath);
+            Assert.True(viewModel.CanValidate);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Dropped_non_zip_and_missing_folder_are_rejected_without_changing_state()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"vaultdelta-invalid-drop-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        string textFile = Path.Combine(root, "notes.txt");
+        await File.WriteAllTextAsync(textFile, "not a patch");
+        try
+        {
+            FakePatchWorkflow workflow = new() { Inspection = Inspection() };
+            PatchWorkspaceViewModel viewModel = Create(workflow);
+
+            Assert.False(await viewModel.OpenDroppedPatchAsync(textFile));
+            Assert.False(viewModel.SetDroppedTargetPath(Path.Combine(root, "missing")));
+
+            Assert.Equal(PatchWorkspaceState.Empty, viewModel.State);
+            Assert.Equal(string.Empty, viewModel.PackagePath);
+            Assert.Equal(string.Empty, viewModel.TargetPath);
+            Assert.Null(workflow.InspectedPath);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static PatchWorkspaceViewModel Create(
         FakePatchWorkflow workflow,
         string? patch = null,
@@ -165,13 +217,17 @@ public sealed class PatchWorkspaceViewModelTests
         public RollbackResult RollbackResult { get; init; } = new(ApplyJournalStatus.RolledBack, "journal.json", null);
         public int ApplyCalls { get; private set; }
         public int RollbackCalls { get; private set; }
+        public string? InspectedPath { get; private set; }
 
         public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
-        public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) =>
-            InspectionError is null
+        public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default)
+        {
+            InspectedPath = packagePath;
+            return InspectionError is null
                 ? ValueTask.FromResult(Inspection!)
                 : ValueTask.FromException<PackageInspectionResult>(InspectionError);
+        }
 
         public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(Validation);
 
