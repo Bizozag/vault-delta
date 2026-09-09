@@ -52,7 +52,7 @@ public sealed class LocalPatchWorkflowServiceTests : IDisposable
         Assert.Equal(8, inspection.VerifiedPayloadBytes);
         Assert.Equal(baseline.SnapshotId, inspection.Manifest.BaseSnapshotId);
         Assert.Equal(target.SnapshotId, inspection.Manifest.TargetSnapshotId);
-        Assert.Equal("0.1.1", inspection.Manifest.GeneratorVersion);
+        Assert.Equal("0.1.2", inspection.Manifest.GeneratorVersion);
     }
 
     private static LocalPatchWorkflowService CreateService(Sha256ContentHasher hasher)

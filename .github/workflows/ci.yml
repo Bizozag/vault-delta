@@ -48,7 +48,7 @@ jobs:
           global-json-file: global.json
 
       - name: Package Apple Silicon and Intel applications
-        run: ./scripts/publish-macos.sh --version 0.1.1 --skip-verify
+        run: ./scripts/publish-macos.sh --version 0.1.2 --skip-verify
 
       - name: Upload macOS release candidates
         uses: actions/upload-artifact@v4
@@ -56,8 +56,8 @@ jobs:
           name: vault-delta-macos-${{ github.sha }}
           if-no-files-found: error
           path: |
-            artifacts/releases/macos/VaultDelta-0.1.1-osx-arm64.zip
-            artifacts/releases/macos/VaultDelta-0.1.1-osx-x64.zip
+            artifacts/releases/macos/VaultDelta-0.1.2-osx-arm64.zip
+            artifacts/releases/macos/VaultDelta-0.1.2-osx-x64.zip
             artifacts/releases/macos/SHA256SUMS.txt
             artifacts/releases/macos/*/Vault Delta.app/Contents/Info.plist
             artifacts/releases/macos/*/Vault Delta.app/Contents/Resources/release.json

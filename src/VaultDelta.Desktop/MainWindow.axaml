@@ -64,18 +64,10 @@
 
             <Grid Grid.Column="1" RowDefinitions="92,*">
                 <Border Grid.Row="0" Background="#FAF9F6" BorderBrush="#DDDFDA" BorderThickness="0,0,0,1" Padding="34,19,32,17">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Spacing="3">
-                            <TextBlock Text="{Binding PageTitle}" FontSize="25" FontWeight="SemiBold" Foreground="#17211F" />
-                            <TextBlock Text="{Binding PageDescription}" Classes="muted" FontSize="13" />
-                        </StackPanel>
-                        <Border Grid.Column="1" VerticalAlignment="Center" Background="#E6F3EF" BorderBrush="#C6E3DA" BorderThickness="1" CornerRadius="18" Padding="12,7">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <Border Width="7" Height="7" CornerRadius="4" Background="#087C6A" VerticalAlignment="Center" />
-                                <TextBlock Text="准备就绪" FontSize="12" FontWeight="SemiBold" Foreground="#075F52" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="{Binding PageTitle}" FontSize="25" FontWeight="SemiBold" Foreground="#17211F" />
+                        <TextBlock Text="{Binding PageDescription}" Classes="muted" FontSize="13" />
+                    </StackPanel>
                 </Border>
 
                 <Grid Grid.Row="1">
@@ -135,17 +127,6 @@
                                         <TextBlock Text="已处理条目" Classes="muted" FontSize="11" />
                                         <TextBlock Text="{Binding ProcessedEntries}" FontSize="28" FontWeight="SemiBold" Foreground="#087C6A" />
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <Border x:Name="PatchBuildProgressPanel" Classes="card" Padding="22" IsVisible="{Binding IsGeneratingPatch}">
-                                <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Text="{Binding PatchBuildProgressText}" Classes="sectionTitle" />
-                                        <TextBlock Grid.Column="1" Text="{Binding PatchBuildProgressPercentage, StringFormat={}{0}%}" Foreground="#087C6A" FontSize="22" FontWeight="SemiBold" />
-                                    </Grid>
-                                    <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{Binding PatchBuildProgressPercentage}" Height="7" />
-                                    <TextBlock Grid.Row="2" Text="{Binding PatchBuildCurrentPath}" Classes="muted" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
                                 </Grid>
                             </Border>
 
@@ -356,18 +337,38 @@
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
+
+                    <Border x:Name="PatchBuildProgressPanel"
+                            ZIndex="10"
+                            DataContext="{Binding Compare}"
+                            IsVisible="{Binding IsGeneratingPatch}"
+                            Width="580"
+                            Margin="34,0,34,24"
+                            Padding="18"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            CornerRadius="12"
+                            Background="#172D28"
+                            BorderBrush="#2D544B"
+                            BorderThickness="1"
+                            BoxShadow="0 8 24 0 #52000000">
+                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding PatchBuildProgressText}" Foreground="White" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Text="{Binding PatchBuildProgressPercentage, StringFormat={}{0}%}" Foreground="#65D3B8" FontSize="20" FontWeight="SemiBold" />
+                            </Grid>
+                            <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{Binding PatchBuildProgressPercentage}" Height="8" />
+                            <TextBlock Grid.Row="2" Text="{Binding PatchBuildCurrentPath}" Foreground="#AFC8C1" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </Border>
                 </Grid>
             </Grid>
         </Grid>
 
         <Border Grid.Row="1" Background="#E9E8E3" BorderBrush="#D5D6D1" BorderThickness="0,1,0,0" Padding="16,0">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                    <Border Width="6" Height="6" CornerRadius="3" Background="#36A886" />
-                    <TextBlock Text="未开始事务" FontSize="11" Foreground="#58635F" />
-                </StackPanel>
-                <TextBlock Grid.Column="1" Text="所有操作均在本机完成" FontSize="11" Foreground="#7A837F" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="{Binding VersionText}" FontSize="11" Foreground="#7A837F" VerticalAlignment="Center" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="所有操作均在本机完成" FontSize="11" Foreground="#7A837F" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding VersionText}" FontSize="11" Foreground="#7A837F" VerticalAlignment="Center" />
             </Grid>
         </Border>
     </Grid>

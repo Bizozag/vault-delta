@@ -4,6 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using VaultDelta.Application.Compare;
 using VaultDelta.Desktop.Services;
 using VaultDelta.Desktop.ViewModels;
@@ -41,7 +42,9 @@ public sealed class MainWindowRenderingTests
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("TargetDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchPackageDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchTargetDropZone")!));
-        Assert.Equal("v0.1.1", ((MainWindowViewModel)window.DataContext!).VersionText);
+        Assert.Equal("v0.1.2", ((MainWindowViewModel)window.DataContext!).VersionText);
+        Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "准备就绪");
+        Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "未开始事务");
         window.Close();
     }
 
@@ -161,7 +164,9 @@ public sealed class MainWindowRenderingTests
         window.Show();
         Dispatcher.UIThread.RunJobs();
 
-        Assert.True(window.FindControl<Border>("PatchBuildProgressPanel")!.IsVisible);
+        Border progressPanel = window.FindControl<Border>("PatchBuildProgressPanel")!;
+        Assert.True(progressPanel.IsVisible);
+        Assert.DoesNotContain(progressPanel.GetVisualAncestors(), ancestor => ancestor is ScrollViewer);
         Assert.False(window.FindControl<Border>("ScanningPanel")!.IsVisible);
         Assert.Equal(72, shell.Compare.PatchBuildProgressPercentage);
         SaveFrame(window, Path.Combine(Path.GetTempPath(), "vaultdelta-ui-preview", "zip-progress.png"));

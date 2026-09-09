@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="0.1.1"
+version="0.1.2"
 configuration="Release"
 output_root=""
 skip_verify=false
@@ -12,7 +12,7 @@ usage() {
 Usage: ./scripts/publish-macos.sh [options]
 
 Options:
-  --version VERSION       Semantic version (default: 0.1.1)
+  --version VERSION       Semantic version (default: 0.1.2)
   --configuration NAME    Debug or Release (default: Release)
   --output-root PATH      Release output root
   --skip-verify           Skip repository verification
