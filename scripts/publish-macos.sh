@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="0.1.3"
+version="0.1.4"
 configuration="Release"
 output_root=""
 skip_verify=false
@@ -12,7 +12,7 @@ usage() {
 Usage: ./scripts/publish-macos.sh [options]
 
 Options:
-  --version VERSION       Semantic version (default: 0.1.3)
+  --version VERSION       Semantic version (default: 0.1.4)
   --configuration NAME    Debug or Release (default: Release)
   --output-root PATH      Release output root
   --skip-verify           Skip repository verification
@@ -86,44 +86,13 @@ trap cleanup EXIT
 
 create_icon() {
   local resources_directory="$1"
-  local icon_source="$staging_root/VaultDelta-1024.png"
+  local icon_source="$repository_root/src/VaultDelta.Desktop/Assets/VaultDelta.AppIcon.png"
   local iconset="$staging_root/VaultDelta.iconset"
 
-  python3 - "$icon_source" <<'PY'
-import binascii
-import struct
-import sys
-import zlib
-
-path = sys.argv[1]
-size = 1024
-rows = []
-for y in range(size):
-    row = bytearray([0])
-    for x in range(size):
-        dx = x - size / 2
-        dy = y - size / 2
-        inside = dx * dx + dy * dy < (size * 0.42) ** 2
-        if inside:
-            r = 35 + int(35 * y / size)
-            g = 93 + int(75 * x / size)
-            b = 190 + int(45 * (1 - y / size))
-            a = 255
-        else:
-            r = g = b = a = 0
-        row.extend((r, g, min(b, 255), a))
-    rows.append(bytes(row))
-
-def chunk(kind, data):
-    return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', binascii.crc32(kind + data) & 0xffffffff)
-
-png = b'\x89PNG\r\n\x1a\n'
-png += chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0))
-png += chunk(b'IDAT', zlib.compress(b''.join(rows), 9))
-png += chunk(b'IEND', b'')
-with open(path, 'wb') as stream:
-    stream.write(png)
-PY
+  if [[ ! -f "$icon_source" ]]; then
+    echo "Application icon source is missing: $icon_source" >&2
+    exit 1
+  fi
 
   mkdir -p "$iconset"
   for size in 16 32 128 256 512; do
@@ -200,6 +169,7 @@ for rid in osx-arm64 osx-x64; do
   "runtimeIdentifier": "$rid",
   "selfContained": true,
   "framework": "net10.0",
+  "packagingMode": "self-contained-app-bundle",
   "createdAtUtc": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
   "gitCommit": "$git_commit",
   "gitDirty": $git_dirty,

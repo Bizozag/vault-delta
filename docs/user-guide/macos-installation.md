@@ -14,7 +14,7 @@
 在“终端”中进入 ZIP 所在目录：
 
 ```bash
-shasum -a 256 VaultDelta-0.1.3-osx-arm64.zip
+shasum -a 256 VaultDelta-0.1.4-osx-arm64.zip
 cat SHA256SUMS.txt
 ```
 

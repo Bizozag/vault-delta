@@ -3,6 +3,16 @@ Vault Delta for Windows
 
 Vault Delta creates and applies offline incremental ZIP patches for Obsidian vaults.
 
+Package contents
+----------------
+- VaultDelta.exe: the complete self-contained application. Start here.
+- README.txt: this guide.
+- release.json: build provenance and version information.
+
+Runtime dependencies are bundled inside VaultDelta.exe and are extracted to the
+current user's temporary runtime cache when required. Keep these three package
+files together when archiving or verifying a release.
+
 Quick start
 -----------
 1. Extract the complete ZIP to a local folder.

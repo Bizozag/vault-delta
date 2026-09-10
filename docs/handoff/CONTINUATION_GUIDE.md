@@ -54,7 +54,7 @@ Windows：
 ```powershell
 dotnet --info
 ./scripts/verify.ps1 -Configuration Release
-./scripts/publish-windows.ps1 -Version 0.1.3
+./scripts/publish-windows.ps1 -Version 0.1.4
 ```
 
 如果 `artifacts/releases/windows` 已存在，先归档旧目录；打包脚本会拒绝静默覆盖。
@@ -64,16 +64,16 @@ macOS：
 ```bash
 dotnet --info
 pwsh ./scripts/verify.ps1 -Configuration Release
-./scripts/publish-macos.sh --version 0.1.3
+./scripts/publish-macos.sh --version 0.1.4
 ```
 
 macOS 脚本会生成 `osx-arm64` 和 `osx-x64` 两个包；只对与当前主机架构一致的应用执行启动冒烟。检查：
 
 ```bash
 cat artifacts/releases/macos/SHA256SUMS.txt
-plutil -lint "artifacts/releases/macos/VaultDelta-0.1.3-osx-arm64/Vault Delta.app/Contents/Info.plist"
-file "artifacts/releases/macos/VaultDelta-0.1.3-osx-arm64/Vault Delta.app/Contents/MacOS/VaultDelta"
-file "artifacts/releases/macos/VaultDelta-0.1.3-osx-x64/Vault Delta.app/Contents/MacOS/VaultDelta"
+plutil -lint "artifacts/releases/macos/VaultDelta-0.1.4-osx-arm64/Vault Delta.app/Contents/Info.plist"
+file "artifacts/releases/macos/VaultDelta-0.1.4-osx-arm64/Vault Delta.app/Contents/MacOS/VaultDelta"
+file "artifacts/releases/macos/VaultDelta-0.1.4-osx-x64/Vault Delta.app/Contents/MacOS/VaultDelta"
 ```
 
 ## 4. 下一阶段：Task 25

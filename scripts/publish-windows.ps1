@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.3',
+    [string]$Version = '0.1.4',
 
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
@@ -59,25 +59,20 @@ try {
         --self-contained true `
         --output $publishDirectory `
         -p:Version=$Version `
-        -p:PublishSingleFile=false `
+        -p:PublishSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:EnableCompressionInSingleFile=true `
         -p:DebugType=None `
         -p:DebugSymbols=false
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed with exit code $LASTEXITCODE."
     }
 
-    $requiredFiles = @(
-        'VaultDelta.exe',
-        'VaultDelta.dll',
-        'VaultDelta.deps.json',
-        'VaultDelta.runtimeconfig.json',
-        'coreclr.dll',
-        'hostfxr.dll',
-        'Avalonia.Base.dll',
-        'VaultDelta.Application.dll',
-        'VaultDelta.Domain.dll',
-        'VaultDelta.Infrastructure.dll'
-    )
+    Get-ChildItem -LiteralPath $publishDirectory -Filter '*.pdb' -File | ForEach-Object {
+        Remove-Item -LiteralPath $_.FullName -Force
+    }
+
+    $requiredFiles = @('VaultDelta.exe')
     foreach ($requiredFile in $requiredFiles) {
         $requiredPath = Join-Path $publishDirectory $requiredFile
         if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
@@ -96,12 +91,53 @@ try {
         runtimeIdentifier = 'win-x64'
         selfContained = $true
         framework = 'net10.0'
+        packagingMode = 'self-contained-single-file'
         createdAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
         gitCommit = $gitCommit
         gitDirty = $gitDirty
         signatureStatus = $signature.Status.ToString()
     }
     $releaseInfo | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $publishDirectory 'release.json') -Encoding utf8NoBOM
+
+    $expectedRootFiles = @('VaultDelta.exe', 'README.txt', 'release.json')
+    $unexpectedEntries = @(
+        Get-ChildItem -LiteralPath $publishDirectory -Force |
+            Where-Object { -not $_.PSIsContainer -and $_.Name -notin $expectedRootFiles }
+    )
+    $unexpectedDirectories = @(Get-ChildItem -LiteralPath $publishDirectory -Directory -Force)
+    if ($unexpectedEntries.Count -gt 0 -or $unexpectedDirectories.Count -gt 0) {
+        $unexpectedNames = @($unexpectedEntries.Name) + @($unexpectedDirectories.Name)
+        throw "Published package root contains unexpected entries: $($unexpectedNames -join ', ')"
+    }
+
+    Add-Type -AssemblyName System.Drawing.Common
+    $embeddedIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($executable)
+    if ($null -eq $embeddedIcon) {
+        throw 'Published executable does not expose an application icon.'
+    }
+    try {
+        $iconBitmap = $embeddedIcon.ToBitmap()
+        try {
+            $tealPixelCount = 0
+            for ($x = 0; $x -lt $iconBitmap.Width; $x++) {
+                for ($y = 0; $y -lt $iconBitmap.Height; $y++) {
+                    $pixel = $iconBitmap.GetPixel($x, $y)
+                    if ($pixel.A -gt 0 -and $pixel.G -gt ($pixel.R + 20) -and $pixel.G -gt ($pixel.B + 5)) {
+                        $tealPixelCount++
+                    }
+                }
+            }
+            if ($tealPixelCount -lt (($iconBitmap.Width * $iconBitmap.Height) / 10)) {
+                throw 'Published executable icon does not contain the expected Vault Delta teal mark.'
+            }
+        }
+        finally {
+            $iconBitmap.Dispose()
+        }
+    }
+    finally {
+        $embeddedIcon.Dispose()
+    }
 
     if (-not $SkipSmokeTest) {
         $process = Start-Process -FilePath $executable -WorkingDirectory $publishDirectory -WindowStyle Hidden -PassThru
