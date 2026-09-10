@@ -21,6 +21,7 @@ Vault Delta 用于比较两个大型 Obsidian 库快照，生成只包含新增�
 交接文档生成前的关键提交：
 
 ```text
+ec98df3 feat: streamline update package workflow
 3291377 fix: keep zip packaging progress visible
 96c2c65 feat: support folder and patch drag and drop
 d66849f feat: simplify full-vault workflow and show zip progress
@@ -52,6 +53,7 @@ c320c46 feat: rollback interrupted patch applications
 | Task 26 发布候选验收文档 | 未开始 | 依赖真实 Windows 10/11、Apple Silicon/Intel 验收结果 |
 | Task 27 文件夹与 ZIP 拖放 | 完成并发布 v0.1.1 | 三个文件夹投放区、ZIP 投放区、类型/路径/忙碌状态边界测试 |
 | Task 28 固定打包进度与状态精简 | 完成并发布 v0.1.2 | 移除无效状态提示，ZIP 进度固定显示且不受页面滚动影响 |
+| Task 29 更新包双模式界面 | 完成并发布 v0.1.3 | 84px 品牌轨、滑动模式开关、统一更新包命名、同步范围高级折叠区 |
 
 ### 2026-09-09 界面与默认范围迭代
 
@@ -63,12 +65,19 @@ c320c46 feat: rollback interrupted patch applications
 - 比较页可拖入旧/新快照文件夹；补丁页可拖入 ZIP 补丁和应用目标库文件夹。
 - ZIP 拖入后仍执行完整包检查，目标库拖入后仍需基线 Gate；多选、错误类型、非法路径和忙碌状态拖入会被拒绝。
 
+### 2026-09-10 更新包工作流界面
+
+- 两个主功能统一为“创建更新包”和“应用更新包”，用户界面不再强调内部“增量补丁”术语。
+- 原 248 像素左侧导航缩为 84 像素品牌轨，页头双段控件使用 200 毫秒位移动画切换主功能。
+- “同步范围”不设独立页签，作为“创建更新包”中的高级折叠区。
+- 高级区目前只用于确认配置、目录与本机基线的信息结构，v0.1.3 实际比较仍覆盖全部文件。
+
 ## 4. 最近验证结果
 
 ### 完整测试
 
 - Release build：0 警告、0 错误。
-- 测试：193/193 通过。
+- 测试：194/194 通过。
 - 固定 E2E：补丁生成、检查、应用和回滚均覆盖。
 
 ### 大库性能基线
@@ -80,18 +89,18 @@ c320c46 feat: rollback interrupted patch applications
 ### Windows 候选包
 
 ```text
-Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.2
-Commit: 3291377c0f95780ba1cdd9d38342bf004365456f
-Version: 0.1.2
+Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.3
+Commit: ec98df3003e26b6f920de529315f0201c397c13a
+Version: 0.1.3
 RID: win-x64
 Files: 227
-ZIP: 75,509,624 bytes
-SHA-256: 0a8cc6950b41a2177d4a68f966642d7553ab9d8a0103c3ba4cb9e5df026ad231
+ZIP: 75,511,630 bytes
+SHA-256: a9e7088cb315ad87375422e07630cd2da8345673469541490d8535f742d1f1c4
 gitDirty: false
 signatureStatus: NotSigned
 ```
 
-隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.2-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
+隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.3-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
 
 ### macOS 交叉发布
 
@@ -121,6 +130,7 @@ Windows 开发机已分别执行 `dotnet publish`：
 - Windows 发布记录：`docs/plans/2026-09-08-windows-portable-release.md`
 - macOS Task 24 计划：`docs/plans/2026-09-08-macos-dual-architecture-release.md`
 - 固定打包进度设计：`docs/plans/2026-09-09-fixed-package-progress-design.md`
+- 更新包双模式与同步范围设计：`docs/plans/2026-09-10-sync-profile-interface-preview.md`
 - Windows 使用指南：`docs/user-guide/windows-installation.md`
 - macOS 使用指南：`docs/user-guide/macos-installation.md`
 - Windows 打包：`scripts/publish-windows.ps1`
