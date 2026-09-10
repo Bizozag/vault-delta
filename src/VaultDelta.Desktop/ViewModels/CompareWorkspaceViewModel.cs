@@ -90,20 +90,20 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     public bool IsPatchBuilt { get; private set; }
     public string BuiltPatchPath { get; private set; } = string.Empty;
     public string PatchBuildStatusText => IsPatchBuilt
-        ? $"补丁已验证并发布：{BuiltPatchPath}"
-        : "审核通过后可生成默认 ZIP 补丁";
+        ? $"更新包已验证并发布：{BuiltPatchPath}"
+        : "审核通过后可生成默认 ZIP 更新包";
     public int PatchBuildProgressPercentage => _patchBuildProgressPercentage;
     public string PatchBuildCurrentPath => _patchBuildCurrentPath;
     public string PatchBuildProgressText => _patchBuildStage switch
     {
-        PackageBuildStage.Preparing => "正在准备补丁目录",
+        PackageBuildStage.Preparing => "正在准备更新包目录",
         PackageBuildStage.CopyingPayloads => "正在复制并校验差异文件",
-        PackageBuildStage.WritingMetadata => "正在写入补丁清单",
+        PackageBuildStage.WritingMetadata => "正在写入更新包清单",
         PackageBuildStage.Compressing => "正在压缩 ZIP",
         PackageBuildStage.Verifying => "正在重新检查 ZIP 完整性",
         PackageBuildStage.Publishing => "正在发布最终 ZIP",
-        PackageBuildStage.Completed => "ZIP 补丁生成完成",
-        _ => "正在生成 ZIP 补丁",
+        PackageBuildStage.Completed => "ZIP 更新包生成完成",
+        _ => "正在生成 ZIP 更新包",
     };
     public int ProcessedEntries => _processedEntries;
     public string CurrentPath => _currentPath;
@@ -123,7 +123,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         CompareSessionState.ScanningBaseline => "正在扫描旧快照 / 基线",
         CompareSessionState.ScanningTarget => "正在扫描新快照 / 目标",
         CompareSessionState.Comparing => "正在分类差异",
-        CompareSessionState.GeneratingPatch => "正在校验并发布 ZIP 补丁",
+        CompareSessionState.GeneratingPatch => "正在校验并发布 ZIP 更新包",
         CompareSessionState.Completed when HasNoChanges => "比较完成，两个快照内容一致",
         CompareSessionState.Completed => "比较完成，请审核差异",
         CompareSessionState.Cancelled => "比较已取消，未保留半成品结果",
@@ -242,9 +242,9 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
             _errorMessage = exception switch
             {
                 IOException => exception.Message,
-                UnauthorizedAccessException => "无法写入所选补丁位置。",
+                UnauthorizedAccessException => "无法写入所选更新包位置。",
                 InvalidDataException => exception.Message,
-                _ => "补丁未能安全生成，最终输出不会被发布。",
+                _ => "更新包未能安全生成，最终输出不会被发布。",
             };
             SetState(CompareSessionState.Error);
         }

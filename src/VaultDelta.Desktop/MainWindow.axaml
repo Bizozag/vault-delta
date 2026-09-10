@@ -15,64 +15,102 @@
         MinHeight="680"
         WindowStartupLocation="CenterScreen">
     <Grid RowDefinitions="*,34" Background="#F3F1EC">
-        <Grid Grid.Row="0" ColumnDefinitions="248,*">
-            <Border Grid.Column="0" Background="#172B27" Padding="18,22,18,18">
-                <Grid RowDefinitions="Auto,36,*">
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
-                        <Border Width="40" Height="40" CornerRadius="11" Background="#1DAA91">
-                            <Path Width="23"
-                                  Height="23"
+        <Grid Grid.Row="0" ColumnDefinitions="84,*">
+            <Border Grid.Column="0" Background="#172B27">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="0,18,0,14">
+                    <StackPanel Grid.Row="0" HorizontalAlignment="Center" Spacing="7">
+                        <Border Width="44" Height="44" CornerRadius="12" Background="#1DAA91">
+                            <Path Width="24"
+                                  Height="24"
                                   Stretch="Uniform"
                                   Fill="White"
                                   Data="M3,6 L10,6 L10,3 L15,8 L10,13 L10,10 L3,10 Z M21,14 L14,14 L14,11 L9,16 L14,21 L14,18 L21,18 Z" />
                         </Border>
-                        <StackPanel VerticalAlignment="Center" Spacing="0">
-                            <TextBlock Text="VAULT DELTA" FontSize="15" FontWeight="Bold" LetterSpacing="1.1" Foreground="White" />
-                            <TextBlock Text="离线增量工具" FontSize="11" Foreground="#91A7A1" />
-                        </StackPanel>
+                        <TextBlock Text="VD" FontSize="12" FontWeight="Bold" LetterSpacing="1.5" Foreground="#DCE9E5" HorizontalAlignment="Center" />
                     </StackPanel>
-
-                    <TextBlock Grid.Row="1" Margin="12,18,0,0" Text="工作区" FontSize="11" FontWeight="SemiBold" LetterSpacing="1.1" Foreground="#708B84" />
-
-                    <StackPanel Grid.Row="2" Margin="0,16,0,0">
-                        <Button x:Name="CompareNavigation" Classes="nav" Classes.active="{Binding IsCompareSelected}"
-                                Command="{Binding NavigateCommand}" CommandParameter="Compare"
-                                AutomationProperties.Name="创建增量补丁">
-                            <Grid ColumnDefinitions="28,*">
-                                <TextBlock Grid.Column="0" Text="⇄" FontSize="20" VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="比较快照" FontWeight="SemiBold" />
-                                    <TextBlock Text="创建增量补丁" FontSize="11" Opacity="0.7" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-
-                        <Button x:Name="PatchesNavigation" Classes="nav" Classes.active="{Binding IsPatchesSelected}"
-                                Command="{Binding NavigateCommand}" CommandParameter="Patches"
-                                AutomationProperties.Name="补丁与恢复">
-                            <Grid ColumnDefinitions="28,*">
-                                <TextBlock Grid.Column="0" Text="▤" FontSize="18" VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="补丁与恢复" FontWeight="SemiBold" />
-                                    <TextBlock Text="检查 · 应用 · 回滚" FontSize="11" Opacity="0.7" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                    </StackPanel>
+                    <TextBlock Grid.Row="2" Text="LOCAL" FontSize="9" FontWeight="SemiBold" LetterSpacing="1.4" Foreground="#759089" HorizontalAlignment="Center" />
                 </Grid>
             </Border>
 
-            <Grid Grid.Column="1" RowDefinitions="92,*">
-                <Border Grid.Row="0" Background="#FAF9F6" BorderBrush="#DDDFDA" BorderThickness="0,0,0,1" Padding="34,19,32,17">
-                    <StackPanel Spacing="3">
-                        <TextBlock Text="{Binding PageTitle}" FontSize="25" FontWeight="SemiBold" Foreground="#17211F" />
-                        <TextBlock Text="{Binding PageDescription}" Classes="muted" FontSize="13" />
-                    </StackPanel>
+            <Grid Grid.Column="1" RowDefinitions="106,*">
+                <Border Grid.Row="0" Background="#FAF9F6" BorderBrush="#DDDFDA" BorderThickness="0,0,0,1" Padding="28,17,28,15">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                        <StackPanel Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="VAULT DELTA" Classes="eyebrow" />
+                            <TextBlock Text="{Binding PageTitle}" FontSize="24" FontWeight="SemiBold" Foreground="#17211F" />
+                            <TextBlock Text="{Binding PageDescription}" Classes="muted" FontSize="12" />
+                        </StackPanel>
+
+                        <Border Grid.Column="1" Width="360" Height="58" Padding="4" CornerRadius="15" Background="#E7E9E5" BorderBrush="#D5D9D3" BorderThickness="1" VerticalAlignment="Center">
+                            <Grid Width="352">
+                                <Border Width="176" Height="48" HorizontalAlignment="Left" CornerRadius="11" Background="White" BoxShadow="0 3 10 0 #1F17211F">
+                                    <Border.RenderTransform>
+                                        <TranslateTransform X="{Binding SwitchIndicatorOffset}">
+                                            <TranslateTransform.Transitions>
+                                                <Transitions>
+                                                    <DoubleTransition Property="X" Duration="0:0:0.20" />
+                                                </Transitions>
+                                            </TranslateTransform.Transitions>
+                                        </TranslateTransform>
+                                    </Border.RenderTransform>
+                                </Border>
+                                <Grid ColumnDefinitions="*,*">
+                                    <Button x:Name="CompareNavigation" Grid.Column="0" Classes="mode" Classes.active="{Binding IsCompareSelected}"
+                                            Command="{Binding NavigateCommand}" CommandParameter="Compare" AutomationProperties.Name="创建更新包">
+                                        <StackPanel Spacing="1"><TextBlock Text="创建更新包" FontWeight="SemiBold" HorizontalAlignment="Center"/><TextBlock Text="比较并打包变化" FontSize="10" Opacity="0.7" HorizontalAlignment="Center"/></StackPanel>
+                                    </Button>
+                                    <Button x:Name="PatchesNavigation" Grid.Column="1" Classes="mode" Classes.active="{Binding IsPatchesSelected}"
+                                            Command="{Binding NavigateCommand}" CommandParameter="Patches" AutomationProperties.Name="应用更新包">
+                                        <StackPanel Spacing="1"><TextBlock Text="应用更新包" FontWeight="SemiBold" HorizontalAlignment="Center"/><TextBlock Text="检查、应用与恢复" FontSize="10" Opacity="0.7" HorizontalAlignment="Center"/></StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Border>
 
                 <Grid Grid.Row="1">
                     <ScrollViewer x:Name="ComparePage" IsVisible="{Binding IsCompareSelected}" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="34,26,34,42" Spacing="18" DataContext="{Binding Compare}">
+                            <Border x:Name="AdvancedScopePanel" Classes="card" Padding="18">
+                                <StackPanel Spacing="14">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="13">
+                                        <Border Width="38" Height="38" CornerRadius="10" Background="#E7F2EF">
+                                            <TextBlock Text="◎" Foreground="#087C6A" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="同步范围" FontWeight="SemiBold" FontSize="15" />
+                                                <Border Background="#F0F2EE" CornerRadius="9" Padding="7,2"><TextBlock Text="高级" Classes="muted" FontSize="10" /></Border>
+                                            </StackPanel>
+                                            <TextBlock Text="使用可复用配置，只比较库中的指定子目录；配置不绑定任何电脑。" Classes="muted" FontSize="11" />
+                                        </StackPanel>
+                                        <Button x:Name="ToggleScopePanelButton" Grid.Column="2" Content="{Binding $parent[Window].DataContext.ScopePanelButtonText}" Classes="secondary"
+                                                Command="{Binding $parent[Window].DataContext.ToggleScopePanelCommand}" MinHeight="34" Padding="12,5" />
+                                    </Grid>
+
+                                    <Border x:Name="AdvancedScopeContent" IsVisible="{Binding $parent[Window].DataContext.IsScopePanelExpanded}" CornerRadius="10" Background="#F7F8F4" BorderBrush="#E0E2DC" BorderThickness="1" Padding="15">
+                                        <Grid ColumnDefinitions="1.1*,1.4*" ColumnSpacing="18">
+                                            <StackPanel Grid.Column="0" Spacing="9">
+                                                <TextBlock Text="本次比较范围" FontWeight="SemiBold" />
+                                                <ComboBox SelectedIndex="0" IsEnabled="False">
+                                                    <ComboBoxItem Content="全部文件（当前默认）" />
+                                                    <ComboBoxItem Content="工作资料 · B / C / D" />
+                                                </ComboBox>
+                                                <TextBlock Text="配置文件将只保存名称、相对目录和范围版本；本机路径与基线单独记录。" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <Border Grid.Column="1" CornerRadius="9" Background="#172D28" Padding="14">
+                                                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="16">
+                                                    <StackPanel Spacing="3"><TextBlock Text="B" Foreground="#F5C98E" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="首次完整装入" Foreground="White" FontSize="11"/></StackPanel>
+                                                    <StackPanel Grid.Column="1" Spacing="3"><TextBlock Text="C + D" Foreground="#65D3B8" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="沿用本机基线" Foreground="White" FontSize="11"/></StackPanel>
+                                                    <StackPanel Grid.Column="2" Spacing="3" HorizontalAlignment="Right"><TextBlock Text="规划中" Foreground="#AFC8C1" FontSize="11" FontWeight="SemiBold"/><TextBlock Text="本版不改变实际范围" Foreground="#AFC8C1" FontSize="10"/></StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <Border Classes="card" Padding="22">
                                 <StackPanel Spacing="16">
                                     <Grid ColumnDefinitions="*,Auto">
@@ -109,7 +147,7 @@
                                     </Grid>
 
                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-                                        <TextBlock Text="比较全部文件；路径与文件系统安全检查始终启用" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                        <TextBlock Text="当前比较全部文件；路径与文件系统安全检查始终启用" Classes="muted" FontSize="11" VerticalAlignment="Center" />
                                         <Button Grid.Column="1" x:Name="CancelCompareButton" Content="取消" Classes="secondary" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
                                         <Button Grid.Column="2" x:Name="StartCompareButton" Content="开始比较" Classes="primary" Command="{Binding CompareCommand}" />
                                     </Grid>
@@ -143,7 +181,7 @@
                                     <StackPanel Spacing="7">
                                         <TextBlock Text="差异审核区" Classes="sectionTitle" />
                                         <TextBlock Text="比较完成后，这里会列出新增、修改、删除和重命名。筛选只改变显示，不会改变底层差异结果。" Classes="muted" TextWrapping="Wrap" LineHeight="20" />
-                                        <TextBlock Text="生成补丁将在审核完成后的下一阶段开放。" Foreground="#087C6A" FontSize="12" FontWeight="SemiBold" />
+                                        <TextBlock Text="生成更新包将在审核完成后的下一阶段开放。" Foreground="#087C6A" FontSize="12" FontWeight="SemiBold" />
                                     </StackPanel>
                                     <Border Grid.Column="1" CornerRadius="10" Background="#172D28" Padding="16">
                                         <StackPanel Spacing="8">
@@ -182,7 +220,7 @@
                                         </Grid>
 
                                         <Border IsVisible="{Binding HasNoChanges}" Padding="24" CornerRadius="10" Background="#EDF6F2">
-                                            <TextBlock Text="两个快照内容一致，无需生成补丁。" HorizontalAlignment="Center" Foreground="#075F52" FontWeight="SemiBold" />
+                                            <TextBlock Text="两个快照内容一致，无需生成更新包。" HorizontalAlignment="Center" Foreground="#075F52" FontWeight="SemiBold" />
                                         </Border>
 
                                         <ItemsControl ItemsSource="{Binding FilteredEntries}" IsVisible="{Binding HasChanges}">
@@ -206,10 +244,10 @@
                                         </ItemsControl>
 
                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Text="下一步将把审核结果交给补丁生成 Gate。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                                            <TextBlock Text="下一步将把审核结果交给更新包生成 Gate。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
                                                 <TextBlock Text="{Binding PatchBuildStatusText}" Classes="muted" FontSize="11" VerticalAlignment="Center" MaxWidth="330" TextTrimming="CharacterEllipsis" />
-                                                <Button x:Name="BuildPatchButton" Content="生成 ZIP 补丁" Classes="primary" Command="{Binding BuildPatchCommand}" />
+                                                <Button x:Name="BuildPatchButton" Content="生成 ZIP 更新包" Classes="primary" Command="{Binding BuildPatchCommand}" />
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
@@ -226,7 +264,7 @@
                                         <Grid ColumnDefinitions="*,Auto">
                                             <StackPanel Spacing="4">
                                                 <TextBlock Text="APPLY GATE" Classes="eyebrow" />
-                                                <TextBlock Text="检查并应用补丁" Classes="sectionTitle" FontSize="20" />
+                                                <TextBlock Text="检查并应用更新包" Classes="sectionTitle" FontSize="20" />
                                                 <TextBlock Text="先验证 ZIP、载荷和目标基线。只有 Gate 全部通过后才允许写入。" Classes="muted" FontSize="12" />
                                             </StackPanel>
                                             <Border Grid.Column="1" Background="#E8F3EF" CornerRadius="16" Padding="12,6" VerticalAlignment="Center">
@@ -236,8 +274,8 @@
 
                                         <Border x:Name="PatchPackageDropZone" Padding="10" CornerRadius="10" Background="#F7F8F4" BorderBrush="#C9D8D3" BorderThickness="1">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                <TextBox Text="{Binding PackagePath}" IsReadOnly="True" PlaceholderText="拖入 .zip 补丁，或点击打开" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
-                                                <Button Grid.Column="1" x:Name="OpenPatchButton" Content="打开补丁" Classes="primary" Command="{Binding OpenPatchCommand}" />
+                                                <TextBox Text="{Binding PackagePath}" IsReadOnly="True" PlaceholderText="拖入 .zip 更新包，或点击打开" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
+                                                <Button Grid.Column="1" x:Name="OpenPatchButton" Content="打开更新包" Classes="primary" Command="{Binding OpenPatchCommand}" />
                                             </Grid>
                                         </Border>
 
@@ -260,7 +298,7 @@
 
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Text="写入前会验证文件系统能力，并为覆盖和删除项建立独立备份。" Classes="muted" FontSize="11" VerticalAlignment="Center" />
-                                            <Button Grid.Column="1" x:Name="ApplyPatchButton" Content="应用补丁" Classes="primary" Command="{Binding ApplyCommand}" />
+                                            <Button Grid.Column="1" x:Name="ApplyPatchButton" Content="应用更新包" Classes="primary" Command="{Binding ApplyCommand}" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -270,7 +308,7 @@
                                         <StackPanel Spacing="4">
                                             <TextBlock Text="RECOVERY" Classes="eyebrow" Foreground="#A45C23" />
                                             <TextBlock Text="事务恢复" Classes="sectionTitle" FontSize="20" />
-                                            <TextBlock Text="恢复只需要 Journal 与同目录备份，不依赖原补丁包；中断后可使用同一 Journal 重试。" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                                            <TextBlock Text="恢复只需要 Journal 与同目录备份，不依赖原更新包；中断后可使用同一 Journal 重试。" Classes="muted" FontSize="12" TextWrapping="Wrap" />
                                         </StackPanel>
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                             <TextBox Text="{Binding JournalPath}" IsReadOnly="True" PlaceholderText="尚未选择 journal.json" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" />
@@ -327,7 +365,7 @@
                                     <StackPanel Grid.Column="1" Spacing="4">
                                         <TextBlock Text="应用中断，需要恢复" FontWeight="SemiBold" Foreground="#934A24" />
                                         <TextBlock Text="{Binding ErrorMessage}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
-                                        <TextBlock Text="Journal 已自动填入右侧恢复入口；恢复不依赖原补丁包。" Foreground="#A45C23" FontSize="11" />
+                                        <TextBlock Text="Journal 已自动填入右侧恢复入口；恢复不依赖原更新包。" Foreground="#A45C23" FontSize="11" />
                                     </StackPanel>
                                 </Grid>
                             </Border>

@@ -34,7 +34,7 @@ SHA256SUMS.txt
 在 PowerShell 中进入 ZIP 所在目录：
 
 ```powershell
-Get-FileHash .\VaultDelta-0.1.2-win-x64.zip -Algorithm SHA256
+Get-FileHash .\VaultDelta-0.1.3-win-x64.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -42,7 +42,7 @@ Get-Content .\SHA256SUMS.txt
 
 ## 安装与首次启动
 
-1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.2-win-x64`。
+1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.3-win-x64`。
 2. 不要只从 ZIP 内直接运行，也不要单独复制 `VaultDelta.exe`；程序需要同目录运行库。
 3. 双击 `VaultDelta.exe`。
 4. 程序以当前用户权限运行，不会请求管理员权限。

@@ -21,7 +21,7 @@ namespace VaultDelta.Desktop.Tests;
 public sealed class MainWindowRenderingTests
 {
     [AvaloniaFact]
-    public void Default_shell_renders_compare_page_at_minimum_supported_size()
+    public void Default_shell_renders_create_package_page_at_minimum_supported_size()
     {
         MainWindow window = new()
         {
@@ -34,15 +34,20 @@ public sealed class MainWindowRenderingTests
 
         Assert.True(window.FindControl<ScrollViewer>("ComparePage")!.IsVisible);
         Assert.False(window.FindControl<ScrollViewer>("PatchesPage")!.IsVisible);
+        Assert.Null(window.FindControl<ScrollViewer>("ProfilesPage"));
         Assert.Null(window.FindControl<ScrollViewer>("SettingsPage"));
         Assert.True(window.Bounds.Width >= 1024);
         Assert.True(window.Bounds.Height >= 680);
+        Assert.Null(window.FindControl<Button>("ProfilesNavigation"));
         Assert.NotNull(window.FindControl<Button>("CompareNavigation"));
+        Assert.NotNull(window.FindControl<Button>("PatchesNavigation"));
+        Assert.NotNull(window.FindControl<Border>("AdvancedScopePanel"));
+        Assert.False(window.FindControl<Border>("AdvancedScopeContent")!.IsVisible);
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("BaselineDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("TargetDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchPackageDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchTargetDropZone")!));
-        Assert.Equal("v0.1.2", ((MainWindowViewModel)window.DataContext!).VersionText);
+        Assert.Equal("v0.1.3", ((MainWindowViewModel)window.DataContext!).VersionText);
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "准备就绪");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "未开始事务");
         window.Close();
@@ -55,10 +60,14 @@ public sealed class MainWindowRenderingTests
         window.Show();
         Dispatcher.UIThread.RunJobs();
 
+        Assert.True(window.FindControl<ScrollViewer>("ComparePage")!.IsVisible);
+        Assert.Equal(0, ((MainWindowViewModel)window.DataContext!).SwitchIndicatorOffset);
+
         window.FindControl<Button>("PatchesNavigation")!.Command!.Execute("Patches");
         Dispatcher.UIThread.RunJobs();
         Assert.True(window.FindControl<ScrollViewer>("PatchesPage")!.IsVisible);
         Assert.False(window.FindControl<ScrollViewer>("ComparePage")!.IsVisible);
+        Assert.Equal(176, ((MainWindowViewModel)window.DataContext!).SwitchIndicatorOffset);
 
         window.Close();
     }
@@ -78,7 +87,11 @@ public sealed class MainWindowRenderingTests
         window.Show();
         Dispatcher.UIThread.RunJobs();
 
-        SaveFrame(window, Path.Combine(outputDirectory, "compare.png"));
+        SaveFrame(window, Path.Combine(outputDirectory, "create-package.png"));
+        window.FindControl<Button>("ToggleScopePanelButton")!.Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(window.FindControl<Border>("AdvancedScopeContent")!.IsVisible);
+        SaveFrame(window, Path.Combine(outputDirectory, "create-package-advanced-scope.png"));
         window.FindControl<Button>("PatchesNavigation")!.Command!.Execute("Patches");
         Dispatcher.UIThread.RunJobs();
         SaveFrame(window, Path.Combine(outputDirectory, "patches.png"));
@@ -93,6 +106,7 @@ public sealed class MainWindowRenderingTests
     {
         CompareResult result = CreateResult();
         MainWindowViewModel shell = new(new NullFolderPicker(), new ImmediateCompareService(result));
+        shell.NavigateCommand.Execute("Compare");
         shell.Compare.BaselinePath = "D:/Vault/baseline";
         shell.Compare.TargetPath = "D:/Vault/target";
         await shell.Compare.CompareAsync();
@@ -115,6 +129,7 @@ public sealed class MainWindowRenderingTests
     {
         BlockingCompareService blocking = new();
         MainWindowViewModel scanningShell = new(new NullFolderPicker(), blocking);
+        scanningShell.NavigateCommand.Execute("Compare");
         scanningShell.Compare.BaselinePath = "D:/Vault/baseline";
         scanningShell.Compare.TargetPath = "D:/Vault/target";
         Task comparison = scanningShell.Compare.CompareAsync();
@@ -129,6 +144,7 @@ public sealed class MainWindowRenderingTests
         scanningWindow.Close();
 
         MainWindowViewModel errorShell = new(new NullFolderPicker(), new ThrowingCompareService());
+        errorShell.NavigateCommand.Execute("Compare");
         errorShell.Compare.BaselinePath = "D:/Vault/missing";
         errorShell.Compare.TargetPath = "D:/Vault/target";
         await errorShell.Compare.CompareAsync();
@@ -149,6 +165,7 @@ public sealed class MainWindowRenderingTests
             new ImmediateCompareService(CreateResult()),
             new BuildStoragePicker("D:/Transfer/delta.zip"),
             workflow);
+        shell.NavigateCommand.Execute("Compare");
         shell.Compare.BaselinePath = "D:/Vault/baseline";
         shell.Compare.TargetPath = "D:/Vault/target";
         await shell.Compare.CompareAsync();

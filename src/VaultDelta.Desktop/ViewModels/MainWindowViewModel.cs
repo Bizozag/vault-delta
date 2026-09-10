@@ -8,6 +8,7 @@ namespace VaultDelta.Desktop.ViewModels;
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private ShellPage _currentPage = ShellPage.Compare;
+    private bool _isScopePanelExpanded;
     private readonly string _versionText = $"v{GetProductVersion()}";
 
     public MainWindowViewModel()
@@ -30,11 +31,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         Compare = new CompareWorkspaceViewModel(folderPicker, compareService, patchStoragePicker, patchWorkflow);
         Patches = new PatchWorkspaceViewModel(folderPicker, patchStoragePicker, patchWorkflow);
         NavigateCommand = new RelayCommand(Navigate);
+        ToggleScopePanelCommand = new RelayCommand(_ => IsScopePanelExpanded = !IsScopePanelExpanded);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand NavigateCommand { get; }
+
+    public ICommand ToggleScopePanelCommand { get; }
 
     public CompareWorkspaceViewModel Compare { get; }
 
@@ -58,6 +62,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsPatchesSelected));
             OnPropertyChanged(nameof(PageTitle));
             OnPropertyChanged(nameof(PageDescription));
+            OnPropertyChanged(nameof(SwitchIndicatorOffset));
         }
     }
 
@@ -65,17 +70,37 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsPatchesSelected => CurrentPage == ShellPage.Patches;
 
+    public double SwitchIndicatorOffset => IsPatchesSelected ? 176 : 0;
+
+    public bool IsScopePanelExpanded
+    {
+        get => _isScopePanelExpanded;
+        private set
+        {
+            if (_isScopePanelExpanded == value)
+            {
+                return;
+            }
+
+            _isScopePanelExpanded = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ScopePanelButtonText));
+        }
+    }
+
+    public string ScopePanelButtonText => IsScopePanelExpanded ? "收起设置" : "展开设置";
+
     public string PageTitle => CurrentPage switch
     {
-        ShellPage.Compare => "创建增量补丁",
-        ShellPage.Patches => "补丁与恢复",
+        ShellPage.Compare => "创建更新包",
+        ShellPage.Patches => "应用更新包",
         _ => throw new InvalidOperationException($"Unknown shell page: {CurrentPage}."),
     };
 
     public string PageDescription => CurrentPage switch
     {
-        ShellPage.Compare => "比较两个 Obsidian 快照，只打包真正发生变化的内容。",
-        ShellPage.Patches => "检查、应用离线补丁，并从未完成的事务中安全恢复。",
+        ShellPage.Compare => "比较两个 Obsidian 快照，把发生变化的内容整理成便携更新包。",
+        ShellPage.Patches => "检查并应用离线更新包，遇到冲突时安全停止或恢复。",
         _ => throw new InvalidOperationException($"Unknown shell page: {CurrentPage}."),
     };
 

@@ -49,6 +49,20 @@
         <Style Selector="Button.nav.active:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#D8F3EB" />
         </Style>
+        <Style Selector="Button.mode">
+            <Setter Property="MinHeight" Value="48" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#69736F" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <Style Selector="Button.mode:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#10087C6A" />
+        </Style>
+        <Style Selector="Button.mode.active">
+            <Setter Property="Foreground" Value="#075F52" />
+        </Style>
         <Style Selector="Border.card">
             <Setter Property="Background" Value="#FFFFFF" />
             <Setter Property="BorderBrush" Value="#DEE0DA" />

@@ -75,18 +75,18 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         ? "—"
         : $"{_inspection.VerifiedPayloadCount} 个文件 · {DiffReviewItemViewModel.FormatBytes(_inspection.VerifiedPayloadBytes)}";
     public string SummaryText => _inspection is null
-        ? "尚未打开补丁"
+        ? "尚未打开更新包"
         : $"新增 {_inspection.Manifest.Summary.Added} · 修改 {_inspection.Manifest.Summary.Modified} · 删除 {_inspection.Manifest.Summary.Deleted} · 重命名 {_inspection.Manifest.Summary.Renamed}";
     public string StatusText => State switch
     {
-        PatchWorkspaceState.Empty => "打开补丁后先进行完整性检查",
+        PatchWorkspaceState.Empty => "打开更新包后先进行完整性检查",
         PatchWorkspaceState.Inspecting => "正在验证清单和载荷",
-        PatchWorkspaceState.PackageReady => "补丁完整，等待选择目标库",
+        PatchWorkspaceState.PackageReady => "更新包完整，等待选择目标库",
         PatchWorkspaceState.Validating => "正在检查目标基线",
         PatchWorkspaceState.Conflict => "发现基线冲突，尚未写入",
         PatchWorkspaceState.ReadyToApply => "Gate 已通过，可以安全应用",
         PatchWorkspaceState.Applying => "正在备份、写入并验证",
-        PatchWorkspaceState.Applied => "补丁应用并验证完成",
+        PatchWorkspaceState.Applied => "更新包应用并验证完成",
         PatchWorkspaceState.NeedsRollback => "应用中断，需要恢复",
         PatchWorkspaceState.RollingBack => "正在恢复备份和原路径",
         PatchWorkspaceState.RolledBack => "恢复完成，目标已回到原状态",
@@ -170,7 +170,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         }
         catch (Exception exception)
         {
-            _errorMessage = ToUserMessage(exception, "补丁包未通过完整性检查。");
+            _errorMessage = ToUserMessage(exception, "更新包未通过完整性检查。");
             SetState(PatchWorkspaceState.Error);
         }
         finally
