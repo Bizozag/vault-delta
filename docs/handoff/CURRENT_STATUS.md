@@ -21,6 +21,7 @@ Vault Delta 用于比较两个大型 Obsidian 库快照，生成只包含新增�
 交接文档生成前的关键提交：
 
 ```text
+093d945 build: add branded icon and single-file package
 ec98df3 feat: streamline update package workflow
 3291377 fix: keep zip packaging progress visible
 96c2c65 feat: support folder and patch drag and drop
@@ -54,6 +55,7 @@ c320c46 feat: rollback interrupted patch applications
 | Task 27 文件夹与 ZIP 拖放 | 完成并发布 v0.1.1 | 三个文件夹投放区、ZIP 投放区、类型/路径/忙碌状态边界测试 |
 | Task 28 固定打包进度与状态精简 | 完成并发布 v0.1.2 | 移除无效状态提示，ZIP 进度固定显示且不受页面滚动影响 |
 | Task 29 更新包双模式界面 | 完成并发布 v0.1.3 | 84px 品牌轨、滑动模式开关、统一更新包命名、同步范围高级折叠区 |
+| Task 30 图标与精简发布目录 | 完成并发布 v0.1.4 | 品牌 ICO、Windows 自包含单文件、三文件根目录白名单、macOS 共用图标源 |
 
 ### 2026-09-09 界面与默认范围迭代
 
@@ -72,6 +74,13 @@ c320c46 feat: rollback interrupted patch applications
 - “同步范围”不设独立页签，作为“创建更新包”中的高级折叠区。
 - 高级区目前只用于确认配置、目录与本机基线的信息结构，v0.1.3 实际比较仍覆盖全部文件。
 
+### 2026-09-10 图标与精简发布包
+
+- Windows EXE 嵌入青绿色圆角方块与白色双向箭头品牌图标，包含 16–256px 多尺寸帧。
+- Windows 改为 .NET 自包含单文件发布，依赖按需释放到当前用户的临时运行缓存。
+- 解压目录固定只含 `VaultDelta.exe`、`README.txt`、`release.json`；打包脚本发现其他条目会失败。
+- macOS 的 ICNS 生成改为复用相同的 1024px PNG 图标源。
+
 ## 4. 最近验证结果
 
 ### 完整测试
@@ -89,18 +98,18 @@ c320c46 feat: rollback interrupted patch applications
 ### Windows 候选包
 
 ```text
-Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.3
-Commit: ec98df3003e26b6f920de529315f0201c397c13a
-Version: 0.1.3
+Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.4
+Commit: 093d945b54c66ec86b090fa4884e7e3c0a918105
+Version: 0.1.4
 RID: win-x64
-Files: 227
-ZIP: 75,511,630 bytes
-SHA-256: a9e7088cb315ad87375422e07630cd2da8345673469541490d8535f742d1f1c4
+Files: 3
+ZIP: 43,396,214 bytes
+SHA-256: dcb0971ae9c7d4e3dc4fedaf0c07a35e29a6e719076c2b191add899d1fd735fb
 gitDirty: false
 signatureStatus: NotSigned
 ```
 
-隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.3-win-x64/` 一个顶层目录，无路径越界条目。该预览包未做 Authenticode 签名。
+隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.4-win-x64/` 一个顶层目录，目录内只有三个白名单文件且无路径越界条目。该预览包未做 Authenticode 签名。
 
 ### macOS 交叉发布
 
@@ -131,6 +140,7 @@ Windows 开发机已分别执行 `dotnet publish`：
 - macOS Task 24 计划：`docs/plans/2026-09-08-macos-dual-architecture-release.md`
 - 固定打包进度设计：`docs/plans/2026-09-09-fixed-package-progress-design.md`
 - 更新包双模式与同步范围设计：`docs/plans/2026-09-10-sync-profile-interface-preview.md`
+- 应用图标与精简包设计：`docs/plans/2026-09-10-app-icon-and-clean-package.md`
 - Windows 使用指南：`docs/user-guide/windows-installation.md`
 - macOS 使用指南：`docs/user-guide/macos-installation.md`
 - Windows 打包：`scripts/publish-windows.ps1`
