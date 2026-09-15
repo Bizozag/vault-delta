@@ -58,6 +58,8 @@ public sealed class ApplyWorkflow(
 
         string operationId = request.OperationId ?? Guid.NewGuid().ToString("N");
         ApplyTransactionPaths transaction = _fileOperations.CreateTransactionPaths(request.TransactionRoot, operationId);
+        IReadOnlyList<PatchOperation> plannedOperations = PatchOperationExecutionPlanner
+            .Order(inspection.Manifest.Operations);
 
         await using IAsyncDisposable targetLock = await _lockManager
             .AcquireAsync(request.TargetRoot, operationId, cancellationToken)
@@ -71,7 +73,7 @@ public sealed class ApplyWorkflow(
             inspection.Manifest.PatchId,
             _fileOperations.GetCanonicalRoot(request.TargetRoot),
             transaction.BackupRoot,
-            inspection.Manifest.Operations);
+            plannedOperations);
         await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
 
         try
@@ -80,7 +82,7 @@ public sealed class ApplyWorkflow(
             journal = journal.WithStatus(ApplyJournalStatus.Applying);
             await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
 
-            foreach (PatchOperation operation in inspection.Manifest.Operations)
+            foreach (PatchOperation operation in plannedOperations)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await ValidateBeforeMutationAsync(operation, request.TargetRoot, cancellationToken).ConfigureAwait(false);
@@ -123,7 +125,7 @@ public sealed class ApplyWorkflow(
             journal = journal.WithStatus(ApplyJournalStatus.Verifying);
             await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
             _faultInjector.ThrowIfRequested(ApplyFaultPoint.BeforeFinalVerification);
-            foreach (PatchOperation operation in inspection.Manifest.Operations)
+            foreach (PatchOperation operation in plannedOperations)
             {
                 await VerifyAppliedAsync(operation, request.TargetRoot, cancellationToken).ConfigureAwait(false);
             }

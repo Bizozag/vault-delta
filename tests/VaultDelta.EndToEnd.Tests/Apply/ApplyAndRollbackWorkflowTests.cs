@@ -1,9 +1,12 @@
 using VaultDelta.Application.Abstractions;
 using VaultDelta.Application.Apply;
 using VaultDelta.Application.Patches;
+using VaultDelta.Application.Compare;
+using VaultDelta.Application.Snapshots;
 using VaultDelta.Domain.Apply;
 using VaultDelta.Domain.Patches;
 using VaultDelta.Domain.Paths;
+using VaultDelta.Domain.Rules;
 using VaultDelta.Domain.Snapshots;
 using VaultDelta.Infrastructure.Apply;
 using VaultDelta.Infrastructure.FileSystem;
@@ -58,6 +61,91 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
             CancellationToken.None);
         Assert.True(repeated.Succeeded);
         Assert.Equal(baseline, ReadTree(vault));
+    }
+
+    [Fact]
+    public async Task Generated_patch_moves_a_directory_tree_and_deletes_a_non_empty_tree()
+    {
+        string vault = Path.Combine(_root, "tree-vault");
+        string source = Path.Combine(_root, "tree-source");
+        string package = Path.Combine(_root, "tree-package");
+        string transactions = Path.Combine(_root, "tree-transactions");
+        Directory.CreateDirectory(Path.Combine(vault, "Old", "Nested"));
+        Directory.CreateDirectory(Path.Combine(vault, "Removed", "Child"));
+        await File.WriteAllTextAsync(Path.Combine(vault, "Old", "Nested", "renamed.md"), "move me", CancellationToken.None);
+        await File.WriteAllTextAsync(Path.Combine(vault, "Removed", "Child", "deleted.md"), "remove me", CancellationToken.None);
+        Directory.CreateDirectory(Path.Combine(source, "ZMoved", "Nested"));
+        await File.WriteAllTextAsync(Path.Combine(source, "ZMoved", "Nested", "renamed.md"), "move me", CancellationToken.None);
+        Dictionary<string, string> baseline = ReadTree(vault);
+        CompareWorkflow compare = new(new SnapshotScanner(new LocalFileSystem(), _hasher));
+        CompareResult comparison = await compare.RunAsync(
+            new CompareRequest(vault, source, ObsidianDefaultRules.Create()),
+            cancellationToken: CancellationToken.None);
+        PatchManifest manifest = PatchManifest.FromDiff(
+            "directory-tree-patch",
+            DateTimeOffset.UnixEpoch,
+            "0.1.0",
+            comparison.Baseline,
+            comparison.Target,
+            comparison.Differences);
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
+
+        ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
+            new ApplyRequest(package, vault, transactions, "directory-tree"),
+            CancellationToken.None);
+
+        Assert.True(applied.Succeeded, applied.Error);
+        Assert.Equal(ReadTree(source), ReadTree(vault));
+
+        RollbackResult rollback = await CreateRollbackWorkflow().RollbackAsync(
+            applied.JournalPath!,
+            CancellationToken.None);
+
+        Assert.True(rollback.Succeeded, rollback.Error);
+        Assert.Equal(baseline, ReadTree(vault));
+    }
+
+    [Fact]
+    public async Task Apply_reorders_a_legacy_parent_first_directory_move_manifest()
+    {
+        string vault = Path.Combine(_root, "legacy-vault");
+        string source = Path.Combine(_root, "legacy-source");
+        string package = Path.Combine(_root, "legacy-package");
+        string transactions = Path.Combine(_root, "legacy-transactions");
+        Directory.CreateDirectory(Path.Combine(vault, "Old", "Nested"));
+        string oldFile = Path.Combine(vault, "Old", "Nested", "note.md");
+        await File.WriteAllTextAsync(oldFile, "move me", CancellationToken.None);
+        Directory.CreateDirectory(Path.Combine(source, "ZMoved", "Nested"));
+        await File.WriteAllTextAsync(Path.Combine(source, "ZMoved", "Nested", "note.md"), "move me", CancellationToken.None);
+        FileFingerprint fingerprint = await FingerprintAsync(oldFile);
+        PatchManifest legacyManifest = Manifest(
+            "legacy-parent-first",
+            PatchOperation.DeleteDirectory(10, RelativePath.Parse("Old")),
+            PatchOperation.DeleteDirectory(20, RelativePath.Parse("Old/Nested")),
+            PatchOperation.AddDirectory(30, RelativePath.Parse("ZMoved")),
+            PatchOperation.AddDirectory(40, RelativePath.Parse("ZMoved/Nested")),
+            PatchOperation.Rename(
+                50,
+                RelativePath.Parse("Old/Nested/note.md"),
+                RelativePath.Parse("ZMoved/Nested/note.md"),
+                fingerprint));
+        await new DirectoryPackageWriter(_hasher).WriteAsync(
+            legacyManifest,
+            source,
+            package,
+            cancellationToken: CancellationToken.None);
+
+        ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
+            new ApplyRequest(package, vault, transactions, "legacy-directory-tree"),
+            CancellationToken.None);
+
+        Assert.True(applied.Succeeded, applied.Error);
+        Assert.Equal(ReadTree(source), ReadTree(vault));
+        ApplyJournal journal = await new JsonApplyJournalStore().LoadAsync(applied.JournalPath!, CancellationToken.None);
+        Assert.Equal(PatchOperationType.Add, journal.Operations[0].Operation.Type);
+        Assert.Equal(PatchOperationType.Rename, journal.Operations[2].Operation.Type);
+        Assert.Equal("Old/Nested", journal.Operations[3].Operation.BasePath!.Value);
+        Assert.Equal("Old", journal.Operations[4].Operation.BasePath!.Value);
     }
 
     [Theory]

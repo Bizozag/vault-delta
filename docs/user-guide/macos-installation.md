@@ -14,7 +14,7 @@
 在“终端”中进入 ZIP 所在目录：
 
 ```bash
-shasum -a 256 VaultDelta-0.1.4-osx-arm64.zip
+shasum -a 256 VaultDelta-0.1.5-osx-arm64.zip
 cat SHA256SUMS.txt
 ```
 
@@ -44,6 +44,8 @@ Journal 和备份位于目标库同级目录：
 ```
 
 发生中断时，选择对应 `journal.json` 并运行恢复；恢复不依赖原补丁 ZIP。确认新库工作正常前不要删除事务目录。
+
+Vault Delta 以相对路径、条目类型和文件内容 SHA-256 判断一致性，不同步文件夹修改时间，也忽略仅有时间戳的文件变化。默认纳管 `.obsidian/**`，因此扫描、应用和复核期间应保持 Obsidian 关闭；重新打开库后，`workspace.json`、recent-files 等运行状态再次变化属于新的本机写入。
 
 ## macOS 验收边界
 

@@ -87,6 +87,87 @@ public sealed class PatchManifestTests
     }
 
     [Fact]
+    public void FromDiff_orders_directory_tree_operations_for_safe_application()
+    {
+        SnapshotInventory baseline = Inventory(
+            Directory("Old"),
+            Directory("Old/Nested"),
+            File("Old/Nested/renamed.md", 'a', 1),
+            Directory("Removed"),
+            Directory("Removed/Child"),
+            File("Removed/Child/deleted.md", 'b', 1));
+        SnapshotInventory target = Inventory(
+            Directory("ZMoved"),
+            Directory("ZMoved/Nested"),
+            File("ZMoved/Nested/renamed.md", 'a', 1));
+
+        PatchManifest manifest = PatchManifest.FromDiff(
+            "patch-directory-move",
+            DateTimeOffset.UnixEpoch,
+            "0.1.0",
+            baseline,
+            target,
+            DiffEngine.Compare(baseline, target));
+
+        int IndexOf(PatchOperationType type, string path) => manifest.Operations
+            .Select((operation, index) => (operation, index))
+            .Single(item => item.operation.Type == type
+                && StringComparer.Ordinal.Equals(
+                    (item.operation.TargetPath ?? item.operation.BasePath)!.Value,
+                    path))
+            .index;
+
+        Assert.True(IndexOf(PatchOperationType.Add, "ZMoved") < IndexOf(PatchOperationType.Rename, "ZMoved/Nested/renamed.md"));
+        Assert.True(IndexOf(PatchOperationType.Rename, "ZMoved/Nested/renamed.md") < IndexOf(PatchOperationType.Delete, "Old/Nested"));
+        Assert.True(IndexOf(PatchOperationType.Delete, "Old/Nested") < IndexOf(PatchOperationType.Delete, "Old"));
+        Assert.True(IndexOf(PatchOperationType.Delete, "Removed/Child/deleted.md") < IndexOf(PatchOperationType.Delete, "Removed/Child"));
+        Assert.True(IndexOf(PatchOperationType.Delete, "Removed/Child") < IndexOf(PatchOperationType.Delete, "Removed"));
+        Assert.Equal(
+            Enumerable.Range(1, manifest.Operations.Count).Select(index => index * 10),
+            manifest.Operations.Select(operation => operation.Sequence));
+    }
+
+    [Fact]
+    public void FromDiff_orders_file_and_directory_type_replacements()
+    {
+        SnapshotInventory baseline = Inventory(
+            File("FileToDirectory", 'a', 1),
+            Directory("DirectoryToFile"),
+            File("DirectoryToFile/child.md", 'b', 2));
+        SnapshotInventory target = Inventory(
+            Directory("FileToDirectory"),
+            File("FileToDirectory/child.md", 'c', 3),
+            File("DirectoryToFile", 'd', 4));
+
+        PatchManifest manifest = PatchManifest.FromDiff(
+            "patch-type-replacements",
+            DateTimeOffset.UnixEpoch,
+            "0.1.0",
+            baseline,
+            target,
+            DiffEngine.Compare(baseline, target));
+
+        int IndexOf(PatchOperationType type, SnapshotEntryKind kind, string path) => manifest.Operations
+            .Select((operation, index) => (operation, index))
+            .Single(item => item.operation.Type == type
+                && item.operation.EntryKind == kind
+                && StringComparer.Ordinal.Equals(
+                    (item.operation.TargetPath ?? item.operation.BasePath)!.Value,
+                    path))
+            .index;
+
+        Assert.True(
+            IndexOf(PatchOperationType.Delete, SnapshotEntryKind.File, "FileToDirectory")
+            < IndexOf(PatchOperationType.Add, SnapshotEntryKind.Directory, "FileToDirectory"));
+        Assert.True(
+            IndexOf(PatchOperationType.Delete, SnapshotEntryKind.File, "DirectoryToFile/child.md")
+            < IndexOf(PatchOperationType.Delete, SnapshotEntryKind.Directory, "DirectoryToFile"));
+        Assert.True(
+            IndexOf(PatchOperationType.Delete, SnapshotEntryKind.Directory, "DirectoryToFile")
+            < IndexOf(PatchOperationType.Add, SnapshotEntryKind.File, "DirectoryToFile"));
+    }
+
+    [Fact]
     public void Constructor_rejects_duplicate_sequences_and_target_paths()
     {
         FileFingerprint fingerprint = Fingerprint('a', 1);

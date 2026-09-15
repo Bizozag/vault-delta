@@ -12,8 +12,9 @@ public sealed class BackupStore(IContentHasher contentHasher) : IBackupStore
     public string GetDeletedBackupRelativePath(RelativePath relativePath, SnapshotEntryKind entryKind)
     {
         ArgumentNullException.ThrowIfNull(relativePath);
-        string category = entryKind == SnapshotEntryKind.Directory ? "deleted-directories" : "deleted";
-        return $"{category}/{relativePath.Value}";
+        return entryKind == SnapshotEntryKind.Directory
+            ? $"deleted-directories/{relativePath.Value}/entry"
+            : $"deleted/{relativePath.Value}";
     }
 
     public async ValueTask<string> BackupFileAsync(

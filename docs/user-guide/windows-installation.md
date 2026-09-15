@@ -32,7 +32,7 @@ SHA256SUMS.txt
 在 PowerShell 中进入 ZIP 所在目录：
 
 ```powershell
-Get-FileHash .\VaultDelta-0.1.4-win-x64.zip -Algorithm SHA256
+Get-FileHash .\VaultDelta-0.1.5-win-x64.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -40,7 +40,7 @@ Get-Content .\SHA256SUMS.txt
 
 ## 安装与首次启动
 
-1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.4-win-x64`。
+1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.5-win-x64`。
 2. 不要直接从 ZIP 内运行；完整解压后，根目录中的 `VaultDelta.exe` 就是启动入口。
 3. 双击 `VaultDelta.exe`。
 4. 程序以当前用户权限运行，不会请求管理员权限。
@@ -77,6 +77,12 @@ Get-Content .\SHA256SUMS.txt
 ```
 
 确认新库工作正常前，不要删除该目录。
+
+## 如何核对应用结果
+
+Vault Delta 以“相对路径、条目类型和文件内容 SHA-256”作为一致性标准，不同步文件夹修改时间，也不把仅有时间戳变化的文件视为内容修改。因此，应用完成后应使用内容校验或再次运行 Vault Delta 比较；不要只根据资源管理器或其他工具显示的文件夹日期判断是否一致。
+
+由于默认纳管 `.obsidian/**`，Obsidian 打开库后会持续改写 `workspace.json`、recent-files 等运行状态。要获得可重复的结果，请在扫描旧/新快照、应用更新包以及结果复核期间关闭 Obsidian。若应用完成后再打开库，这些动态文件产生新差异属于应用后的正常写入，不代表补丁漏应用。
 
 ## 中断与回滚演练
 

@@ -108,6 +108,10 @@ public sealed class PatchManifest
             sequence += 10;
         }
 
+        operations = PatchOperationExecutionPlanner
+            .OrderAndResequence(operations)
+            .ToList();
+
         PatchSummary summary = new(
             operations.Count(operation => operation.Type == PatchOperationType.Add),
             operations.Count(operation => operation.Type == PatchOperationType.Modify),
