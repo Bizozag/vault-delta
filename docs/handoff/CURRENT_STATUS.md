@@ -1,6 +1,6 @@
 # Vault Delta 当前交接状态
 
-更新时间：2026-09-09（Asia/Shanghai）
+更新时间：2026-09-15（Asia/Shanghai）
 
 ## 1. 项目目标与固定决策
 
@@ -21,6 +21,7 @@ Vault Delta 用于比较两个大型 Obsidian 库快照，生成只包含新增�
 交接文档生成前的关键提交：
 
 ```text
+4c26347 fix: apply directory moves and deletions safely
 093d945 build: add branded icon and single-file package
 ec98df3 feat: streamline update package workflow
 3291377 fix: keep zip packaging progress visible
@@ -56,6 +57,7 @@ c320c46 feat: rollback interrupted patch applications
 | Task 28 固定打包进度与状态精简 | 完成并发布 v0.1.2 | 移除无效状态提示，ZIP 进度固定显示且不受页面滚动影响 |
 | Task 29 更新包双模式界面 | 完成并发布 v0.1.3 | 84px 品牌轨、滑动模式开关、统一更新包命名、同步范围高级折叠区 |
 | Task 30 图标与精简发布目录 | 完成并发布 v0.1.4 | 品牌 ICO、Windows 自包含单文件、三文件根目录白名单、macOS 共用图标源 |
+| Task 31 目录移动与非空目录删除修复 | 完成并发布 v0.1.5 | 路径依赖拓扑排序、旧清单兼容、嵌套目录独立备份槽、真实目录树往返测试 |
 
 ### 2026-09-09 界面与默认范围迭代
 
@@ -81,12 +83,20 @@ c320c46 feat: rollback interrupted patch applications
 - 解压目录固定只含 `VaultDelta.exe`、`README.txt`、`release.json`；打包脚本发现其他条目会失败。
 - macOS 的 ICNS 生成改为复用相同的 1024px PNG 图标源。
 
+### 2026-09-15 目录操作修复与真实样本诊断
+
+- 对用户提供的 8,051 文件结果逐文件执行 SHA-256；应用目录与新快照只有两个被 Obsidian 后续改写的动态状态文件不同，相对文件和目录路径完全一致。
+- 该样本 ZIP 本身为 42 个新增、8 个修改、0 个删除、0 个重命名；旧快照所有路径仍存在于新快照，生成器没有可判定的删除或移动源路径。
+- 另行用合成目录复现并修复 v0.1.4 的真实缺陷：父目录可能先于子文件移动/删除，嵌套删除目录的备份路径也可能互相占用。
+- 0.1.5 在生成清单和应用旧版 v1 清单时都执行稳定的路径依赖排序；目录备份使用独立 `entry` 槽，并完整覆盖应用和回滚。
+- 文件夹修改时间和仅时间戳变化仍不属于同步语义；扫描、应用和复核期间应关闭 Obsidian。
+
 ## 4. 最近验证结果
 
 ### 完整测试
 
 - Release build：0 警告、0 错误。
-- 测试：194/194 通过。
+- 测试：198/198 通过。
 - 固定 E2E：补丁生成、检查、应用和回滚均覆盖。
 
 ### 大库性能基线
@@ -98,18 +108,18 @@ c320c46 feat: rollback interrupted patch applications
 ### Windows 候选包
 
 ```text
-Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.4
-Commit: 093d945b54c66ec86b090fa4884e7e3c0a918105
-Version: 0.1.4
+Release: https://github.com/Bizozag/vault-delta/releases/tag/v0.1.5
+Commit: 4c26347567af4f6d03ec96db4b42eafe1dd41641
+Version: 0.1.5
 RID: win-x64
 Files: 3
-ZIP: 43,396,214 bytes
-SHA-256: dcb0971ae9c7d4e3dc4fedaf0c07a35e29a6e719076c2b191add899d1fd735fb
+ZIP: 43,398,677 bytes
+SHA-256: 939a8a00b2ee652e82ffcb224b569fc38449c593b21c79319558317964deb057
 gitDirty: false
 signatureStatus: NotSigned
 ```
 
-隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.4-win-x64/` 一个顶层目录，目录内只有三个白名单文件且无路径越界条目。该预览包未做 Authenticode 签名。
+隐藏启动 3 秒冒烟通过，ZIP 只有 `VaultDelta-0.1.5-win-x64/` 一个顶层目录，目录内只有三个白名单文件且无路径越界条目。该预览包未做 Authenticode 签名。
 
 ### macOS 交叉发布
 
@@ -141,6 +151,7 @@ Windows 开发机已分别执行 `dotnet publish`：
 - 固定打包进度设计：`docs/plans/2026-09-09-fixed-package-progress-design.md`
 - 更新包双模式与同步范围设计：`docs/plans/2026-09-10-sync-profile-interface-preview.md`
 - 应用图标与精简包设计：`docs/plans/2026-09-10-app-icon-and-clean-package.md`
+- 目录移动、删除与样本诊断：`docs/plans/2026-09-15-directory-operation-ordering-fix.md`
 - Windows 使用指南：`docs/user-guide/windows-installation.md`
 - macOS 使用指南：`docs/user-guide/macos-installation.md`
 - Windows 打包：`scripts/publish-windows.ps1`

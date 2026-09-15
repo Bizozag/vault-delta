@@ -54,7 +54,7 @@ Windows：
 ```powershell
 dotnet --info
 ./scripts/verify.ps1 -Configuration Release
-./scripts/publish-windows.ps1 -Version 0.1.4
+./scripts/publish-windows.ps1 -Version 0.1.5
 ```
 
 如果 `artifacts/releases/windows` 已存在，先归档旧目录；打包脚本会拒绝静默覆盖。
@@ -64,16 +64,16 @@ macOS：
 ```bash
 dotnet --info
 pwsh ./scripts/verify.ps1 -Configuration Release
-./scripts/publish-macos.sh --version 0.1.4
+./scripts/publish-macos.sh --version 0.1.5
 ```
 
 macOS 脚本会生成 `osx-arm64` 和 `osx-x64` 两个包；只对与当前主机架构一致的应用执行启动冒烟。检查：
 
 ```bash
 cat artifacts/releases/macos/SHA256SUMS.txt
-plutil -lint "artifacts/releases/macos/VaultDelta-0.1.4-osx-arm64/Vault Delta.app/Contents/Info.plist"
-file "artifacts/releases/macos/VaultDelta-0.1.4-osx-arm64/Vault Delta.app/Contents/MacOS/VaultDelta"
-file "artifacts/releases/macos/VaultDelta-0.1.4-osx-x64/Vault Delta.app/Contents/MacOS/VaultDelta"
+plutil -lint "artifacts/releases/macos/VaultDelta-0.1.5-osx-arm64/Vault Delta.app/Contents/Info.plist"
+file "artifacts/releases/macos/VaultDelta-0.1.5-osx-arm64/Vault Delta.app/Contents/MacOS/VaultDelta"
+file "artifacts/releases/macos/VaultDelta-0.1.5-osx-x64/Vault Delta.app/Contents/MacOS/VaultDelta"
 ```
 
 ## 4. 下一阶段：Task 25
@@ -145,3 +145,5 @@ docs: prepare cross-platform mvp release
 - 不恢复设置页、插件/Trash 单独开关或侧栏“本地模式”检测块，除非出现新的明确产品决策。
 - 默认比较所有普通文件；安全路径、链接和卷能力 Gate 继续强制执行。
 - Windows/macOS 发布候选必须从包含本次迭代的干净提交重新生成，历史交接包中的 Windows 二进制不代表当前功能。
+- v0.1.5 起，目录树移动和非空目录删除必须通过路径依赖规划器执行；不要恢复为清单字典序直接应用。生成器和应用器两侧都保留排序，以兼容旧版 v1 补丁。
+- 对结果做外部目录比较时不要把文件夹修改时间当作内容差异；需要可重复的 `.obsidian/**` 内容时，扫描、应用和复核期间都保持 Obsidian 关闭。
