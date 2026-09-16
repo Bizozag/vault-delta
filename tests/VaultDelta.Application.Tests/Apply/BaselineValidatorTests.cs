@@ -45,7 +45,10 @@ public sealed class BaselineValidatorTests
         await new BaselineValidator(new FakeTargetStateReader(new Dictionary<string, TargetEntryState>()))
             .ValidateAsync(manifest, "/vault", progress);
 
-        Assert.Equal(new[] { 0, 1, 2 }, events.Select(item => item.ProcessedOperations).ToArray());
+        Assert.Equal(3, events.Count);
+        Assert.Equal(0, events[0].ProcessedOperations);
+        Assert.Equal(1, events[1].ProcessedOperations);
+        Assert.Equal(2, events[2].ProcessedOperations);
         Assert.All(events, item => Assert.Equal(2, item.TotalOperations));
         Assert.Equal("other", events[^1].CurrentPath);
     }
