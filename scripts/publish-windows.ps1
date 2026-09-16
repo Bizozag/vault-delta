@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.5',
+    [string]$Version = '0.1.6',
 
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
@@ -60,6 +60,7 @@ try {
         --output $publishDirectory `
         -p:Version=$Version `
         -p:PublishSingleFile=true `
+        -p:CetCompat=false `
         -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true `
         -p:DebugType=None `

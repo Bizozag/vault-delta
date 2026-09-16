@@ -18,6 +18,8 @@ VaultDelta-<version>-win-x64/
 
 `VaultDelta.exe` 是包含 .NET、Avalonia 和所有运行依赖的单文件主程序。运行时需要的本机库会解压到当前用户的临时运行缓存，不会把 DLL 散落到发布目录。
 
+自 0.1.6 起，Windows 发布包关闭了可执行文件的 CET 兼容标记，以避免部分未完整支持 CET 的 Windows 10 系统在打开程序时直接崩溃。建议仍安装适用于当前 Windows 版本的系统更新。
+
 同级还会生成：
 
 ```text
@@ -32,7 +34,7 @@ SHA256SUMS.txt
 在 PowerShell 中进入 ZIP 所在目录：
 
 ```powershell
-Get-FileHash .\VaultDelta-0.1.5-win-x64.zip -Algorithm SHA256
+Get-FileHash .\VaultDelta-0.1.6-win-x64.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -40,7 +42,7 @@ Get-Content .\SHA256SUMS.txt
 
 ## 安装与首次启动
 
-1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.5-win-x64`。
+1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.6-win-x64`。
 2. 不要直接从 ZIP 内运行；完整解压后，根目录中的 `VaultDelta.exe` 就是启动入口。
 3. 双击 `VaultDelta.exe`。
 4. 程序以当前用户权限运行，不会请求管理员权限。
