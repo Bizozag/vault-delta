@@ -47,10 +47,11 @@ public sealed class ApplyWorkflow(
         BaselineValidationResult baseline = await _baselineValidator
             .ValidateAsync(inspection.Manifest, request.TargetRoot, cancellationToken)
             .ConfigureAwait(false);
-        if (baseline.Status == BaselineValidationStatus.Conflict)
+        if (!TryResolveOperations(inspection.Manifest.Operations, baseline.Conflicts, request.Resolutions, out IReadOnlyList<PatchOperation> selectedOperations))
         {
             return new ApplyResult(null, baseline, null, null);
         }
+        BaselineValidationResult acceptedBaseline = new([]);
 
         await _capabilityValidator
             .ValidateAsync(request.TargetRoot, request.TransactionRoot, cancellationToken)
@@ -59,7 +60,7 @@ public sealed class ApplyWorkflow(
         string operationId = request.OperationId ?? Guid.NewGuid().ToString("N");
         ApplyTransactionPaths transaction = _fileOperations.CreateTransactionPaths(request.TransactionRoot, operationId);
         IReadOnlyList<PatchOperation> plannedOperations = PatchOperationExecutionPlanner
-            .Order(inspection.Manifest.Operations);
+            .Order(selectedOperations);
 
         await using IAsyncDisposable targetLock = await _lockManager
             .AcquireAsync(request.TargetRoot, operationId, cancellationToken)
@@ -132,7 +133,7 @@ public sealed class ApplyWorkflow(
 
             journal = journal.WithStatus(ApplyJournalStatus.Committed);
             await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
-            return new ApplyResult(journal.Status, baseline, transaction.JournalPath, null);
+            return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, null);
         }
         catch (Exception exception)
         {
@@ -142,8 +143,103 @@ public sealed class ApplyWorkflow(
                 await _journalStore.SaveAsync(transaction.JournalPath, journal, CancellationToken.None).ConfigureAwait(false);
             }
 
-            return new ApplyResult(journal.Status, baseline, transaction.JournalPath, exception.Message);
+            return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, exception.Message);
         }
+    }
+
+    private static bool TryResolveOperations(
+        IReadOnlyList<PatchOperation> operations,
+        IReadOnlyList<BaselineConflict> conflicts,
+        IReadOnlyList<ConflictResolution>? resolutions,
+        out IReadOnlyList<PatchOperation> selectedOperations)
+    {
+        selectedOperations = [];
+        resolutions ??= [];
+        if (resolutions.Count != conflicts.Count)
+        {
+            return false;
+        }
+
+        HashSet<int> matched = [];
+        foreach (BaselineConflict conflict in conflicts)
+        {
+            int index = -1;
+            for (int candidate = 0; candidate < resolutions.Count; candidate++)
+            {
+                ConflictResolution resolution = resolutions[candidate];
+                if (resolution.OperationSequence == conflict.OperationSequence
+                    && resolution.Path == conflict.Path
+                    && resolution.Type == conflict.Type
+                    && resolution.ActualFingerprint == conflict.ActualFingerprint)
+                {
+                    index = candidate;
+                    break;
+                }
+            }
+
+            if (index < 0 || !matched.Add(index))
+            {
+                return false;
+            }
+        }
+
+        Dictionary<int, ConflictResolutionAction> actions = [];
+        foreach (ConflictResolution resolution in resolutions)
+        {
+            if (actions.TryGetValue(resolution.OperationSequence, out ConflictResolutionAction existing)
+                && existing != resolution.Action)
+            {
+                return false;
+            }
+
+            actions[resolution.OperationSequence] = resolution.Action;
+        }
+
+        Dictionary<int, BaselineConflict[]> conflictsByOperation = conflicts
+            .GroupBy(conflict => conflict.OperationSequence)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        List<PatchOperation> selected = [];
+        foreach (PatchOperation operation in operations)
+        {
+            if (!actions.TryGetValue(operation.Sequence, out ConflictResolutionAction action))
+            {
+                selected.Add(operation);
+                continue;
+            }
+
+            if (action == ConflictResolutionAction.Ignore)
+            {
+                continue;
+            }
+
+            BaselineConflict[] operationConflicts = conflictsByOperation[operation.Sequence];
+            if (operationConflicts.Length != 1)
+            {
+                return false;
+            }
+
+            BaselineConflict conflict = operationConflicts[0];
+            if (conflict.Type == BaselineConflictType.UnexpectedContent
+                && conflict.ActualFingerprint is not null
+                && operation.Type is PatchOperationType.Modify or PatchOperationType.Delete)
+            {
+                selected.Add(PatchOperation.Restore(
+                    operation.Sequence,
+                    operation.Type,
+                    operation.EntryKind,
+                    operation.BasePath,
+                    operation.TargetPath,
+                    operation.PayloadPath,
+                    conflict.ActualFingerprint,
+                    operation.NewFingerprint));
+                continue;
+            }
+
+            return false;
+        }
+
+        selectedOperations = selected;
+        return true;
     }
 
     private async ValueTask<string?> PrepareAsync(

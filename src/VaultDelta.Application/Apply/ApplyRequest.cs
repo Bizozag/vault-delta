@@ -4,4 +4,5 @@ public sealed record ApplyRequest(
     string PackagePath,
     string TargetRoot,
     string TransactionRoot,
-    string? OperationId = null);
+    string? OperationId = null,
+    IReadOnlyList<ConflictResolution>? Resolutions = null);

@@ -249,6 +249,85 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task Selected_conflicts_skip_or_overwrite_and_rollback_restores_local_content()
+    {
+        string vault = Path.Combine(_root, "resolution-vault");
+        string source = Path.Combine(_root, "resolution-source");
+        string package = Path.Combine(_root, "resolution-package");
+        string transactions = Path.Combine(_root, "resolution-transactions");
+        Directory.CreateDirectory(vault);
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(vault, "ignore.md"), "local ignored");
+        await File.WriteAllTextAsync(Path.Combine(vault, "revert.md"), "local overwritten");
+        await File.WriteAllTextAsync(Path.Combine(source, "ignore.md"), "package ignored");
+        await File.WriteAllTextAsync(Path.Combine(source, "revert.md"), "package applied");
+        await File.WriteAllTextAsync(Path.Combine(source, "added.md"), "new file");
+        PatchManifest manifest = Manifest(
+            "resolution-patch",
+            PatchOperation.Modify(10, RelativePath.Parse("ignore.md"),
+                new FileFingerprint(3, DateTimeOffset.UnixEpoch, new string('a', 64)),
+                await FingerprintAsync(Path.Combine(source, "ignore.md"))),
+            PatchOperation.Modify(20, RelativePath.Parse("revert.md"),
+                new FileFingerprint(3, DateTimeOffset.UnixEpoch, new string('b', 64)),
+                await FingerprintAsync(Path.Combine(source, "revert.md"))),
+            PatchOperation.Add(30, RelativePath.Parse("added.md"),
+                await FingerprintAsync(Path.Combine(source, "added.md"))));
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
+        BaselineValidationResult baseline = await new BaselineValidator(new LocalTargetStateReader(_hasher))
+            .ValidateAsync(manifest, vault);
+        Assert.Equal(2, baseline.Conflicts.Count);
+        ConflictResolution[] resolutions = baseline.Conflicts.Select(conflict => new ConflictResolution(
+            conflict.OperationSequence, conflict.Path, conflict.Type, conflict.ActualFingerprint,
+            conflict.Path.Value == "ignore.md" ? ConflictResolutionAction.Ignore : ConflictResolutionAction.Revert)).ToArray();
+
+        ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
+            new ApplyRequest(package, vault, transactions, "resolved", resolutions));
+
+        Assert.True(applied.Succeeded, applied.Error);
+        Assert.Equal("local ignored", await File.ReadAllTextAsync(Path.Combine(vault, "ignore.md")));
+        Assert.Equal("package applied", await File.ReadAllTextAsync(Path.Combine(vault, "revert.md")));
+        Assert.Equal("new file", await File.ReadAllTextAsync(Path.Combine(vault, "added.md")));
+
+        RollbackResult rollback = await CreateRollbackWorkflow().RollbackAsync(applied.JournalPath!);
+        Assert.True(rollback.Succeeded, rollback.Error);
+        Assert.Equal("local ignored", await File.ReadAllTextAsync(Path.Combine(vault, "ignore.md")));
+        Assert.Equal("local overwritten", await File.ReadAllTextAsync(Path.Combine(vault, "revert.md")));
+        Assert.False(File.Exists(Path.Combine(vault, "added.md")));
+    }
+
+    [Fact]
+    public async Task Changed_conflict_after_selection_blocks_before_any_write()
+    {
+        string vault = Path.Combine(_root, "stale-vault");
+        string source = Path.Combine(_root, "stale-source");
+        string package = Path.Combine(_root, "stale-package");
+        string transactions = Path.Combine(_root, "stale-transactions");
+        Directory.CreateDirectory(vault);
+        Directory.CreateDirectory(source);
+        string targetFile = Path.Combine(vault, "note.md");
+        await File.WriteAllTextAsync(targetFile, "first local version");
+        await File.WriteAllTextAsync(Path.Combine(source, "note.md"), "package version");
+        PatchManifest manifest = Manifest("stale-patch", PatchOperation.Modify(
+            10, RelativePath.Parse("note.md"),
+            new FileFingerprint(3, DateTimeOffset.UnixEpoch, new string('a', 64)),
+            await FingerprintAsync(Path.Combine(source, "note.md"))));
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
+        BaselineConflict conflict = Assert.Single((await new BaselineValidator(new LocalTargetStateReader(_hasher))
+            .ValidateAsync(manifest, vault)).Conflicts);
+        await File.WriteAllTextAsync(targetFile, "second local version");
+
+        ApplyResult result = await CreateApplyWorkflow().ApplyAsync(new ApplyRequest(
+            package, vault, transactions, "stale",
+            [new ConflictResolution(conflict.OperationSequence, conflict.Path, conflict.Type,
+                conflict.ActualFingerprint, ConflictResolutionAction.Revert)]));
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.JournalPath);
+        Assert.Equal("second local version", await File.ReadAllTextAsync(targetFile));
+        Assert.False(Directory.Exists(transactions));
+    }
+
+    [Fact]
     public async Task Zip_package_is_staged_verified_and_applied()
     {
         string vault = Path.Combine(_root, "zip-vault");

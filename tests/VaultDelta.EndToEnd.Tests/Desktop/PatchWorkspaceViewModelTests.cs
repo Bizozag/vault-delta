@@ -6,6 +6,7 @@ using VaultDelta.Desktop.ViewModels;
 using VaultDelta.Domain.Apply;
 using VaultDelta.Domain.Patches;
 using VaultDelta.Domain.Paths;
+using VaultDelta.Domain.Snapshots;
 
 namespace VaultDelta.EndToEnd.Tests.Desktop;
 
@@ -51,6 +52,37 @@ public sealed class PatchWorkspaceViewModelTests
         Assert.Single(viewModel.Conflicts);
         Assert.Equal("内容不一致", viewModel.Conflicts[0].TypeText);
         Assert.Equal(0, workflow.ApplyCalls);
+    }
+
+    [Fact]
+    public async Task Every_conflict_requires_a_choice_and_choices_reach_apply()
+    {
+        FileFingerprint actual = Fingerprint(5, 'f');
+        FakePatchWorkflow workflow = new()
+        {
+            Inspection = Inspection(),
+            Validation = new BaselineValidationResult(
+            [
+                new BaselineConflict(RelativePath.Parse("edit.md"), BaselineConflictType.UnexpectedContent, "changed", 20, actual),
+                new BaselineConflict(RelativePath.Parse("delete.md"), BaselineConflictType.UnexpectedContent, "changed", 30, actual),
+            ]),
+        };
+        PatchWorkspaceViewModel viewModel = Create(workflow, patch: "D:/patch.zip", target: "D:/vault");
+        await viewModel.OpenPatchAsync();
+        await viewModel.SelectTargetAsync();
+        await viewModel.ValidateAsync();
+
+        viewModel.Conflicts[0].IgnoreCommand.Execute(null);
+        Assert.False(viewModel.CanApply);
+        viewModel.Conflicts[1].RevertCommand.Execute(null);
+        Assert.True(viewModel.CanApply);
+
+        await viewModel.ApplyAsync();
+
+        Assert.Equal(PatchWorkspaceState.Applied, viewModel.State);
+        Assert.Equal(2, workflow.Resolutions?.Count);
+        Assert.Equal(ConflictResolutionAction.Ignore, workflow.Resolutions![0].Action);
+        Assert.Equal(ConflictResolutionAction.Revert, workflow.Resolutions[1].Action);
     }
 
     [Fact]
@@ -216,6 +248,7 @@ public sealed class PatchWorkspaceViewModelTests
         public ApplyResult ApplyResult { get; init; } = new(ApplyJournalStatus.Committed, new BaselineValidationResult([]), "journal.json", null);
         public RollbackResult RollbackResult { get; init; } = new(ApplyJournalStatus.RolledBack, "journal.json", null);
         public int ApplyCalls { get; private set; }
+        public IReadOnlyList<ConflictResolution>? Resolutions { get; private set; }
         public int RollbackCalls { get; private set; }
         public string? InspectedPath { get; private set; }
 
@@ -231,9 +264,10 @@ public sealed class PatchWorkspaceViewModelTests
 
         public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(Validation);
 
-        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, CancellationToken cancellationToken = default)
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, CancellationToken cancellationToken = default)
         {
             ApplyCalls++;
+            Resolutions = resolutions;
             return ValueTask.FromResult(ApplyResult);
         }
 

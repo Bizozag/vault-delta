@@ -55,9 +55,10 @@ public sealed class LocalPatchWorkflowService(
     public ValueTask<ApplyResult> ApplyAsync(
         string packagePath,
         string targetRoot,
+        IReadOnlyList<ConflictResolution>? resolutions = null,
         CancellationToken cancellationToken = default) =>
         _applyWorkflow.ApplyAsync(
-            new ApplyRequest(packagePath, targetRoot, GetTransactionRoot(targetRoot)),
+            new ApplyRequest(packagePath, targetRoot, GetTransactionRoot(targetRoot), Resolutions: resolutions),
             cancellationToken);
 
     public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) =>

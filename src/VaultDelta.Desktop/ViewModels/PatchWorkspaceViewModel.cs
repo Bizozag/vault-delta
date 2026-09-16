@@ -5,6 +5,7 @@ using System.Windows.Input;
 using VaultDelta.Application.Apply;
 using VaultDelta.Application.Patches;
 using VaultDelta.Desktop.Services;
+using VaultDelta.Domain.Patches;
 
 namespace VaultDelta.Desktop.ViewModels;
 
@@ -61,7 +62,8 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
     public bool HasPackage => _inspection is not null;
     public bool HasConflicts => Conflicts.Count > 0;
     public bool CanValidate => !IsBusy && HasPackage && !string.IsNullOrWhiteSpace(TargetPath);
-    public bool CanApply => !IsBusy && State == PatchWorkspaceState.ReadyToApply;
+    public bool CanApply => !IsBusy && (State == PatchWorkspaceState.ReadyToApply
+        || (State == PatchWorkspaceState.Conflict && Conflicts.Count > 0 && Conflicts.All(conflict => conflict.IsResolved)));
     public bool CanRollback => !IsBusy && !string.IsNullOrWhiteSpace(JournalPath);
     public bool ShowPackageSummary => HasPackage;
     public bool ShowConflictPanel => State == PatchWorkspaceState.Conflict;
@@ -83,7 +85,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         PatchWorkspaceState.Inspecting => "正在验证清单和载荷",
         PatchWorkspaceState.PackageReady => "更新包完整，等待选择目标库",
         PatchWorkspaceState.Validating => "正在检查目标基线",
-        PatchWorkspaceState.Conflict => "发现基线冲突，尚未写入",
+        PatchWorkspaceState.Conflict => CanApply ? "冲突已逐项处理，可以应用" : "发现基线冲突，尚未写入",
         PatchWorkspaceState.ReadyToApply => "Gate 已通过，可以安全应用",
         PatchWorkspaceState.Applying => "正在备份、写入并验证",
         PatchWorkspaceState.Applied => "更新包应用并验证完成",
@@ -203,10 +205,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         try
         {
             BaselineValidationResult result = await _workflow.ValidateAsync(_inspection, TargetPath);
-            foreach (BaselineConflict conflict in result.Conflicts)
-            {
-                Conflicts.Add(BaselineConflictItemViewModel.Create(conflict));
-            }
+            SetConflicts(result.Conflicts);
 
             SetState(result.Status == BaselineValidationStatus.Pass
                 ? PatchWorkspaceState.ReadyToApply
@@ -230,14 +229,14 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         SetState(PatchWorkspaceState.Applying);
         try
         {
-            ApplyResult result = await _workflow.ApplyAsync(PackagePath, TargetPath);
+            ConflictResolution[] resolutions = Conflicts
+                .Select(conflict => conflict.Resolution)
+                .OfType<ConflictResolution>()
+                .ToArray();
+            ApplyResult result = await _workflow.ApplyAsync(PackagePath, TargetPath, resolutions);
             if (result.Baseline.Status == BaselineValidationStatus.Conflict)
             {
-                Conflicts.Clear();
-                foreach (BaselineConflict conflict in result.Baseline.Conflicts)
-                {
-                    Conflicts.Add(BaselineConflictItemViewModel.Create(conflict));
-                }
+                SetConflicts(result.Baseline.Conflicts);
 
                 SetState(PatchWorkspaceState.Conflict);
                 return;
@@ -339,12 +338,38 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanValidate));
         OnPropertyChanged(nameof(CanApply));
         OnPropertyChanged(nameof(CanRollback));
+        OnPropertyChanged(nameof(StatusText));
         _openPatchCommand?.NotifyCanExecuteChanged();
         _selectTargetCommand?.NotifyCanExecuteChanged();
         _validateCommand?.NotifyCanExecuteChanged();
         _applyCommand?.NotifyCanExecuteChanged();
         _openJournalCommand?.NotifyCanExecuteChanged();
         _rollbackCommand?.NotifyCanExecuteChanged();
+        foreach (BaselineConflictItemViewModel conflict in Conflicts)
+        {
+            conflict.NotifyCommands();
+        }
+    }
+
+    private void SetConflicts(IReadOnlyList<BaselineConflict> conflicts)
+    {
+        Conflicts.Clear();
+        foreach (BaselineConflict conflict in conflicts)
+        {
+            PatchOperation? operation = _inspection?.Manifest.Operations
+                .FirstOrDefault(item => item.Sequence == conflict.OperationSequence);
+            bool canRevert = conflict.Type == BaselineConflictType.UnexpectedContent
+                && conflict.ActualFingerprint is not null
+                && conflicts.Count(item => item.OperationSequence == conflict.OperationSequence) == 1
+                && operation?.Type is PatchOperationType.Modify or PatchOperationType.Delete;
+            Conflicts.Add(BaselineConflictItemViewModel.Create(
+                conflict,
+                canRevert,
+                NotifyCommands,
+                () => !IsBusy));
+        }
+
+        NotifyCommands();
     }
 
     private void SetTargetPath(string path)

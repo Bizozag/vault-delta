@@ -25,6 +25,7 @@ public interface IPatchWorkflowService
     ValueTask<ApplyResult> ApplyAsync(
         string packagePath,
         string targetRoot,
+        IReadOnlyList<ConflictResolution>? resolutions = null,
         CancellationToken cancellationToken = default);
 
     ValueTask<RollbackResult> RollbackAsync(

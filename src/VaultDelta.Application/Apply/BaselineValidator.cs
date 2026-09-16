@@ -31,7 +31,7 @@ public sealed class BaselineValidator(ITargetStateReader targetStateReader)
                 BaselineConflict? sourceConflict = ValidateExpected(operation.BasePath, operation.EntryKind, operation.OldFingerprint, source);
                 if (sourceConflict is not null)
                 {
-                    conflicts.Add(sourceConflict);
+                    conflicts.Add(sourceConflict with { OperationSequence = operation.Sequence });
                 }
             }
 
@@ -46,14 +46,17 @@ public sealed class BaselineValidator(ITargetStateReader targetStateReader)
                     conflicts.Add(new BaselineConflict(
                         operation.TargetPath,
                         BaselineConflictType.Unreadable,
-                        target.Error ?? "Target path cannot be inspected."));
+                        target.Error ?? "Target path cannot be inspected.",
+                        operation.Sequence));
                 }
                 else if (target.Kind != TargetEntryStateKind.Missing)
                 {
                     conflicts.Add(new BaselineConflict(
                         operation.TargetPath,
                         BaselineConflictType.UnexpectedExisting,
-                        "The operation target already exists."));
+                        "The operation target already exists.",
+                        operation.Sequence,
+                        target.Fingerprint));
                 }
             }
         }
@@ -89,7 +92,7 @@ public sealed class BaselineValidator(ITargetStateReader targetStateReader)
             && (actual.Fingerprint!.Length != expectedFingerprint!.Length
                 || !StringComparer.Ordinal.Equals(actual.Fingerprint.Sha256, expectedFingerprint.Sha256)))
         {
-            return new BaselineConflict(path, BaselineConflictType.UnexpectedContent, "The target file content differs from the baseline.");
+            return new BaselineConflict(path, BaselineConflictType.UnexpectedContent, "The target file content differs from the baseline.", ActualFingerprint: actual.Fingerprint);
         }
 
         return null;
