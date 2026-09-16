@@ -32,10 +32,15 @@ public sealed class ApplyWorkflow(
     private readonly IApplyCapabilityValidator _capabilityValidator = capabilityValidator ?? throw new ArgumentNullException(nameof(capabilityValidator));
     private readonly IApplyFaultInjector _faultInjector = faultInjector ?? NoOpApplyFaultInjector.Instance;
 
+    public ValueTask<ApplyResult> ApplyAsync(
+        ApplyRequest request,
+        CancellationToken cancellationToken = default) =>
+        ApplyAsync(request, null, cancellationToken);
+
     public async ValueTask<ApplyResult> ApplyAsync(
         ApplyRequest request,
-        CancellationToken cancellationToken = default,
-        IProgress<TransactionProgress>? progress = null)
+        IProgress<TransactionProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.PackagePath);

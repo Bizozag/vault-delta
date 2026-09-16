@@ -21,10 +21,15 @@ public sealed class RollbackWorkflow(
     private readonly IApplyCapabilityValidator _capabilityValidator = capabilityValidator ?? throw new ArgumentNullException(nameof(capabilityValidator));
     private readonly IApplyFaultInjector _faultInjector = faultInjector ?? NoOpApplyFaultInjector.Instance;
 
+    public ValueTask<RollbackResult> RollbackAsync(
+        string journalPath,
+        CancellationToken cancellationToken = default) =>
+        RollbackAsync(journalPath, null, cancellationToken);
+
     public async ValueTask<RollbackResult> RollbackAsync(
         string journalPath,
-        CancellationToken cancellationToken = default,
-        IProgress<TransactionProgress>? progress = null)
+        IProgress<TransactionProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(journalPath);
         progress?.Report(new TransactionProgress(TransactionProgressStage.PreparingRecovery, 0, 0, 0));

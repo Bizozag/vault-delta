@@ -264,14 +264,14 @@ public sealed class PatchWorkspaceViewModelTests
 
         public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(Validation);
 
-        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, CancellationToken cancellationToken = default, IProgress<TransactionProgress>? progress = null)
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default)
         {
             ApplyCalls++;
             Resolutions = resolutions;
             return ValueTask.FromResult(ApplyResult);
         }
 
-        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default, IProgress<TransactionProgress>? progress = null)
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default)
         {
             RollbackCalls++;
             return ValueTask.FromResult(RollbackResult);

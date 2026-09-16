@@ -56,18 +56,18 @@ public sealed class LocalPatchWorkflowService(
         string packagePath,
         string targetRoot,
         IReadOnlyList<ConflictResolution>? resolutions = null,
-        CancellationToken cancellationToken = default,
-        IProgress<TransactionProgress>? progress = null) =>
+        IProgress<TransactionProgress>? progress = null,
+        CancellationToken cancellationToken = default) =>
         _applyWorkflow.ApplyAsync(
             new ApplyRequest(packagePath, targetRoot, GetTransactionRoot(targetRoot), Resolutions: resolutions),
-            cancellationToken,
-            progress);
+            progress,
+            cancellationToken);
 
     public ValueTask<RollbackResult> RollbackAsync(
         string journalPath,
-        CancellationToken cancellationToken = default,
-        IProgress<TransactionProgress>? progress = null) =>
-        _rollbackWorkflow.RollbackAsync(journalPath, cancellationToken, progress);
+        IProgress<TransactionProgress>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        _rollbackWorkflow.RollbackAsync(journalPath, progress, cancellationToken);
 
     internal static string GetTransactionRoot(string targetRoot)
     {

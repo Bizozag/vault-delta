@@ -42,8 +42,8 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         CaptureProgress applyProgress = new();
         ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
             new ApplyRequest(package, vault, transactions, "round-trip"),
-            CancellationToken.None,
-            applyProgress);
+            applyProgress,
+            CancellationToken.None);
 
         Assert.True(applied.Succeeded, applied.Error);
         Assert.Contains(applyProgress.Events, item => item.Stage == TransactionProgressStage.Applying && item.ProcessedOperations == manifest.Operations.Count);
@@ -53,8 +53,8 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         CaptureProgress recoveryProgress = new();
         RollbackResult rolledBack = await CreateRollbackWorkflow().RollbackAsync(
             applied.JournalPath!,
-            CancellationToken.None,
-            recoveryProgress);
+            recoveryProgress,
+            CancellationToken.None);
 
         Assert.True(rolledBack.Succeeded, rolledBack.Error);
         Assert.Contains(recoveryProgress.Events, item => item.Stage == TransactionProgressStage.Recovering && item.ProcessedOperations == manifest.Operations.Count);

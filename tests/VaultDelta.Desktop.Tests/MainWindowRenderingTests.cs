@@ -331,8 +331,8 @@ public sealed class MainWindowRenderingTests
 
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, CancellationToken cancellationToken = default, IProgress<TransactionProgress>? progress = null) => throw new NotSupportedException();
-        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default, IProgress<TransactionProgress>? progress = null) => throw new NotSupportedException();
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class PatchUiWorkflow(PackageInspectionResult inspection, BaselineValidationResult validation) : IPatchWorkflowService
@@ -340,7 +340,7 @@ public sealed class MainWindowRenderingTests
         public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => ValueTask.FromResult(inspection);
         public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult packageInspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(validation);
-        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, CancellationToken cancellationToken = default, IProgress<TransactionProgress>? progress = null) => ValueTask.FromResult(new ApplyResult(ApplyJournalStatus.Committed, validation, "journal.json", null));
-        public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default, IProgress<TransactionProgress>? progress = null) => ValueTask.FromResult(new RollbackResult(ApplyJournalStatus.RolledBack, journalPath, null));
+        public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromResult(new ApplyResult(ApplyJournalStatus.Committed, validation, "journal.json", null));
+        public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromResult(new RollbackResult(ApplyJournalStatus.RolledBack, journalPath, null));
     }
 }
