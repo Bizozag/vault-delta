@@ -14,7 +14,7 @@
 在“终端”中进入 ZIP 所在目录：
 
 ```bash
-shasum -a 256 VaultDelta-0.1.5-osx-arm64.zip
+shasum -a 256 VaultDelta-0.1.7-osx-arm64.zip
 cat SHA256SUMS.txt
 ```
 
@@ -33,7 +33,7 @@ Task 24 预览包尚未进行 Developer ID 签名和 Apple 公证。只应运行
 
 ## 应用补丁和恢复
 
-建议先关闭 Obsidian。打开“补丁与恢复”，从 Finder 拖入补丁 ZIP 和目标库（也可以使用选择器），再运行基线检查。只有 schema、manifest、载荷、哈希、路径安全和目标基线全部通过后，应用按钮才会启用。
+建议先关闭 Obsidian。打开“补丁与恢复”，从 Finder 拖入补丁 ZIP 和目标库（也可以使用选择器），再运行基线检查。schema、manifest、载荷、哈希和路径安全检查必须通过。若出现内容冲突，可逐项选择 `ignore`（保留目标文件并跳过该项更新）或 `revert`（采用更新包版本覆盖）；其他冲突仅支持 `ignore`。全部冲突处理后才可应用，写入前会再次检查目标状态。
 
 Journal 和备份位于目标库同级目录：
 
