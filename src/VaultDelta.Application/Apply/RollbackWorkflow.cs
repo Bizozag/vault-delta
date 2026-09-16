@@ -23,12 +23,15 @@ public sealed class RollbackWorkflow(
 
     public async ValueTask<RollbackResult> RollbackAsync(
         string journalPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<TransactionProgress>? progress = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(journalPath);
+        progress?.Report(new TransactionProgress(TransactionProgressStage.PreparingRecovery, 0, 0, 0));
         ApplyJournal journal = await _journalStore.LoadAsync(journalPath, cancellationToken).ConfigureAwait(false);
         if (journal.Status == ApplyJournalStatus.RolledBack)
         {
+            progress?.Report(new TransactionProgress(TransactionProgressStage.Completed, 100, journal.Operations.Count, journal.Operations.Count));
             return new RollbackResult(journal.Status, journalPath, null);
         }
 
@@ -58,13 +61,18 @@ public sealed class RollbackWorkflow(
             await _journalStore.SaveAsync(journalPath, journal, cancellationToken).ConfigureAwait(false);
         }
 
+        PatchOperation? currentOperation = null;
         try
         {
+            int processed = 0;
+            progress?.Report(new TransactionProgress(TransactionProgressStage.Recovering, 5, 0, journal.Operations.Count));
             foreach (ApplyJournalOperation journalOperation in journal.Operations.Reverse())
             {
+                currentOperation = journalOperation.Operation;
                 cancellationToken.ThrowIfCancellationRequested();
                 if (journalOperation.Status == ApplyOperationStatus.RolledBack)
                 {
+                    processed++;
                     continue;
                 }
 
@@ -74,6 +82,8 @@ public sealed class RollbackWorkflow(
                 {
                     journal = journal.WithOperationStatus(operation.Sequence, ApplyOperationStatus.RolledBack);
                     await _journalStore.SaveAsync(journalPath, journal, cancellationToken).ConfigureAwait(false);
+                    processed++;
+                    ReportRecoveryProgress(progress, processed, journal.Operations.Count, operation);
                     continue;
                 }
 
@@ -82,17 +92,36 @@ public sealed class RollbackWorkflow(
                 await VerifyRestoredAsync(operation, journal.TargetRoot, cancellationToken).ConfigureAwait(false);
                 journal = journal.WithOperationStatus(operation.Sequence, ApplyOperationStatus.RolledBack);
                 await _journalStore.SaveAsync(journalPath, journal, cancellationToken).ConfigureAwait(false);
+                processed++;
+                ReportRecoveryProgress(progress, processed, journal.Operations.Count, operation);
             }
 
+            currentOperation = null;
             journal = journal.WithStatus(ApplyJournalStatus.RolledBack);
             await _journalStore.SaveAsync(journalPath, journal, cancellationToken).ConfigureAwait(false);
+            progress?.Report(new TransactionProgress(TransactionProgressStage.Completed, 100, journal.Operations.Count, journal.Operations.Count));
             return new RollbackResult(journal.Status, journalPath, null);
         }
         catch (Exception exception)
         {
-            return new RollbackResult(journal.Status, journalPath, exception.Message);
+            string operationContext = currentOperation is null
+                ? string.Empty
+                : $"恢复操作 {currentOperation.Sequence} ({currentOperation.Type}, {(currentOperation.TargetPath ?? currentOperation.BasePath)?.Value})：";
+            return new RollbackResult(journal.Status, journalPath, operationContext + exception.Message);
         }
     }
+
+    private static void ReportRecoveryProgress(
+        IProgress<TransactionProgress>? progress,
+        int processed,
+        int total,
+        PatchOperation operation) =>
+        progress?.Report(new TransactionProgress(
+            TransactionProgressStage.Recovering,
+            5 + (int)(94L * processed / total),
+            processed,
+            total,
+            (operation.BasePath ?? operation.TargetPath)?.Value));
 
     private void ReverseMutation(ApplyJournalOperation journalOperation, string targetRoot, string backupRoot)
     {

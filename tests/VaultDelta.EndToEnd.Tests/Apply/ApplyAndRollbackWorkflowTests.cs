@@ -39,18 +39,26 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
         PatchManifest manifest = await CreateManifestAsync(vault, source);
         await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
 
+        CaptureProgress applyProgress = new();
         ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
             new ApplyRequest(package, vault, transactions, "round-trip"),
-            CancellationToken.None);
+            CancellationToken.None,
+            applyProgress);
 
         Assert.True(applied.Succeeded, applied.Error);
+        Assert.Contains(applyProgress.Events, item => item.Stage == TransactionProgressStage.Applying && item.ProcessedOperations == manifest.Operations.Count);
+        Assert.Equal(100, applyProgress.Events[^1].Percentage);
         Assert.Equal(ReadTree(source), ReadTree(vault));
 
+        CaptureProgress recoveryProgress = new();
         RollbackResult rolledBack = await CreateRollbackWorkflow().RollbackAsync(
             applied.JournalPath!,
-            CancellationToken.None);
+            CancellationToken.None,
+            recoveryProgress);
 
         Assert.True(rolledBack.Succeeded, rolledBack.Error);
+        Assert.Contains(recoveryProgress.Events, item => item.Stage == TransactionProgressStage.Recovering && item.ProcessedOperations == manifest.Operations.Count);
+        Assert.Equal(100, recoveryProgress.Events[^1].Percentage);
         Assert.Equal(baseline, ReadTree(vault));
         ApplyJournal journal = await new JsonApplyJournalStore().LoadAsync(applied.JournalPath!, CancellationToken.None);
         Assert.Equal(ApplyJournalStatus.RolledBack, journal.Status);
@@ -562,5 +570,12 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
             string transactionRoot,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromException(new PlatformNotSupportedException("Injected unsupported filesystem."));
+    }
+
+    private sealed class CaptureProgress : IProgress<TransactionProgress>
+    {
+        public List<TransactionProgress> Events { get; } = [];
+
+        public void Report(TransactionProgress value) => Events.Add(value);
     }
 }

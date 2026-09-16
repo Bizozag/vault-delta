@@ -35,13 +35,30 @@ public sealed class LocalApplyFileOperations : IApplyFileOperations
         }
 
         Directory.CreateDirectory(parent);
-        if (Directory.Exists(source))
+        const int MaxAttempts = 5;
+        for (int attempt = 1; attempt <= MaxAttempts; attempt++)
         {
-            Directory.Move(source, target);
-        }
-        else
-        {
-            File.Move(source, target);
+            try
+            {
+                if (Directory.Exists(source))
+                {
+                    Directory.Move(source, target);
+                }
+                else
+                {
+                    File.Move(source, target);
+                }
+
+                return;
+            }
+            catch (Exception exception) when (IsTransientMoveError(exception) && attempt < MaxAttempts)
+            {
+                Thread.Sleep(150 * attempt);
+            }
+            catch (Exception exception) when (IsTransientMoveError(exception))
+            {
+                throw new IOException($"Cannot move {sourcePath} to {targetPath} after {MaxAttempts} attempts: {exception.Message}", exception);
+            }
         }
     }
 
@@ -99,4 +116,8 @@ public sealed class LocalApplyFileOperations : IApplyFileOperations
 
         return resolved;
     }
+
+    private static bool IsTransientMoveError(Exception exception) =>
+        (exception is IOException or UnauthorizedAccessException)
+        && (exception.HResult & 0xFFFF) is 5 or 32 or 33;
 }

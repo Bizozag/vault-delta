@@ -56,17 +56,22 @@ public sealed class LocalPatchWorkflowService(
         string packagePath,
         string targetRoot,
         IReadOnlyList<ConflictResolution>? resolutions = null,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        IProgress<TransactionProgress>? progress = null) =>
         _applyWorkflow.ApplyAsync(
             new ApplyRequest(packagePath, targetRoot, GetTransactionRoot(targetRoot), Resolutions: resolutions),
-            cancellationToken);
+            cancellationToken,
+            progress);
 
-    public ValueTask<RollbackResult> RollbackAsync(string journalPath, CancellationToken cancellationToken = default) =>
-        _rollbackWorkflow.RollbackAsync(journalPath, cancellationToken);
+    public ValueTask<RollbackResult> RollbackAsync(
+        string journalPath,
+        CancellationToken cancellationToken = default,
+        IProgress<TransactionProgress>? progress = null) =>
+        _rollbackWorkflow.RollbackAsync(journalPath, cancellationToken, progress);
 
     internal static string GetTransactionRoot(string targetRoot)
     {
-        string canonicalTarget = Path.GetFullPath(targetRoot);
+        string canonicalTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetRoot));
         string? parent = Path.GetDirectoryName(canonicalTarget);
         if (string.IsNullOrEmpty(parent))
         {

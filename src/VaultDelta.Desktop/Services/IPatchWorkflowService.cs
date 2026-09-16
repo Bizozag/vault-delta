@@ -26,9 +26,11 @@ public interface IPatchWorkflowService
         string packagePath,
         string targetRoot,
         IReadOnlyList<ConflictResolution>? resolutions = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IProgress<TransactionProgress>? progress = null);
 
     ValueTask<RollbackResult> RollbackAsync(
         string journalPath,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IProgress<TransactionProgress>? progress = null);
 }

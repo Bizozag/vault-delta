@@ -34,16 +34,19 @@ public sealed class ApplyWorkflow(
 
     public async ValueTask<ApplyResult> ApplyAsync(
         ApplyRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<TransactionProgress>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.PackagePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.TargetRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.TransactionRoot);
 
+        progress?.Report(new TransactionProgress(TransactionProgressStage.InspectingPackage, 0, 0, 0));
         PackageInspectionResult inspection = await _packageInspector
             .InspectAsync(request.PackagePath, cancellationToken)
             .ConfigureAwait(false);
+        progress?.Report(new TransactionProgress(TransactionProgressStage.ValidatingBaseline, 2, 0, inspection.Manifest.Operations.Count));
         BaselineValidationResult baseline = await _baselineValidator
             .ValidateAsync(inspection.Manifest, request.TargetRoot, cancellationToken)
             .ConfigureAwait(false);
@@ -53,6 +56,7 @@ public sealed class ApplyWorkflow(
         }
         BaselineValidationResult acceptedBaseline = new([]);
 
+        progress?.Report(new TransactionProgress(TransactionProgressStage.CheckingCapabilities, 5, 0, selectedOperations.Count));
         await _capabilityValidator
             .ValidateAsync(request.TargetRoot, request.TransactionRoot, cancellationToken)
             .ConfigureAwait(false);
@@ -65,6 +69,7 @@ public sealed class ApplyWorkflow(
         await using IAsyncDisposable targetLock = await _lockManager
             .AcquireAsync(request.TargetRoot, operationId, cancellationToken)
             .ConfigureAwait(false);
+        progress?.Report(new TransactionProgress(TransactionProgressStage.StagingPayloads, 8, 0, plannedOperations.Count));
         await using IPatchPayloadSession payloads = await _payloadStager
             .StageAsync(request.PackagePath, inspection.Manifest, cancellationToken)
             .ConfigureAwait(false);
@@ -77,14 +82,18 @@ public sealed class ApplyWorkflow(
             plannedOperations);
         await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
 
+        PatchOperation? currentOperation = null;
         try
         {
             _faultInjector.ThrowIfRequested(ApplyFaultPoint.AfterPreparedJournal);
             journal = journal.WithStatus(ApplyJournalStatus.Applying);
             await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
 
+            progress?.Report(new TransactionProgress(TransactionProgressStage.Applying, 10, 0, plannedOperations.Count));
+            int completed = 0;
             foreach (PatchOperation operation in plannedOperations)
             {
+                currentOperation = operation;
                 cancellationToken.ThrowIfCancellationRequested();
                 await ValidateBeforeMutationAsync(operation, request.TargetRoot, cancellationToken).ConfigureAwait(false);
 
@@ -121,18 +130,38 @@ public sealed class ApplyWorkflow(
                 journal = journal.WithOperationStatus(operation.Sequence, ApplyOperationStatus.Completed);
                 await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
                 _faultInjector.ThrowIfRequested(ApplyFaultPoint.AfterOperationJournal, operation.Sequence);
+                completed++;
+                progress?.Report(new TransactionProgress(
+                    TransactionProgressStage.Applying,
+                    10 + (int)(80L * completed / plannedOperations.Count),
+                    completed,
+                    plannedOperations.Count,
+                    (operation.TargetPath ?? operation.BasePath)?.Value));
             }
 
+            currentOperation = null;
             journal = journal.WithStatus(ApplyJournalStatus.Verifying);
             await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
             _faultInjector.ThrowIfRequested(ApplyFaultPoint.BeforeFinalVerification);
+            progress?.Report(new TransactionProgress(TransactionProgressStage.Verifying, 90, 0, plannedOperations.Count));
+            int verified = 0;
             foreach (PatchOperation operation in plannedOperations)
             {
+                currentOperation = operation;
                 await VerifyAppliedAsync(operation, request.TargetRoot, cancellationToken).ConfigureAwait(false);
+                verified++;
+                progress?.Report(new TransactionProgress(
+                    TransactionProgressStage.Verifying,
+                    90 + (int)(9L * verified / plannedOperations.Count),
+                    verified,
+                    plannedOperations.Count,
+                    (operation.TargetPath ?? operation.BasePath)?.Value));
             }
 
+            currentOperation = null;
             journal = journal.WithStatus(ApplyJournalStatus.Committed);
             await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
+            progress?.Report(new TransactionProgress(TransactionProgressStage.Completed, 100, plannedOperations.Count, plannedOperations.Count));
             return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, null);
         }
         catch (Exception exception)
@@ -143,7 +172,10 @@ public sealed class ApplyWorkflow(
                 await _journalStore.SaveAsync(transaction.JournalPath, journal, CancellationToken.None).ConfigureAwait(false);
             }
 
-            return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, exception.Message);
+            string operationContext = currentOperation is null
+                ? string.Empty
+                : $"操作 {currentOperation.Sequence} ({currentOperation.Type}, {(currentOperation.TargetPath ?? currentOperation.BasePath)?.Value})：";
+            return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, operationContext + exception.Message);
         }
     }
 

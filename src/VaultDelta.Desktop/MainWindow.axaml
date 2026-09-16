@@ -404,6 +404,30 @@
                             <TextBlock Grid.Row="2" Text="{Binding PatchBuildCurrentPath}" Foreground="#AFC8C1" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
                         </Grid>
                     </Border>
+
+                    <Border x:Name="TransactionProgressPanel"
+                            ZIndex="10"
+                            DataContext="{Binding Patches}"
+                            IsVisible="{Binding IsTransactionRunning}"
+                            Width="580"
+                            Margin="34,0,34,24"
+                            Padding="18"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            CornerRadius="12"
+                            Background="#172D28"
+                            BorderBrush="#2D544B"
+                            BorderThickness="1"
+                            BoxShadow="0 8 24 0 #52000000">
+                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding TransactionProgressText}" Foreground="White" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Text="{Binding TransactionProgressPercentage, StringFormat={}{0}%}" Foreground="#65D3B8" FontSize="20" FontWeight="SemiBold" />
+                            </Grid>
+                            <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{Binding TransactionProgressPercentage}" Height="8" />
+                            <TextBlock Grid.Row="2" Text="{Binding TransactionCurrentPath}" Foreground="#AFC8C1" FontFamily="Cascadia Mono, Menlo, monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </Border>
                 </Grid>
             </Grid>
         </Grid>

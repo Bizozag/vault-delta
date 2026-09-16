@@ -24,6 +24,11 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
     private string _targetPath = string.Empty;
     private string _journalPath = string.Empty;
     private string _errorMessage = string.Empty;
+    private TransactionProgressStage _transactionProgressStage;
+    private int _transactionProgressPercentage;
+    private int _transactionProcessedOperations;
+    private int _transactionTotalOperations;
+    private string _transactionCurrentPath = string.Empty;
     private PatchWorkspaceState _state;
     private PackageInspectionResult? _inspection;
 
@@ -59,6 +64,22 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
     public string ErrorMessage => _errorMessage;
     public PatchWorkspaceState State => _state;
     public bool IsBusy => State is PatchWorkspaceState.Inspecting or PatchWorkspaceState.Validating or PatchWorkspaceState.Applying or PatchWorkspaceState.RollingBack;
+    public bool IsTransactionRunning => State is PatchWorkspaceState.Applying or PatchWorkspaceState.RollingBack;
+    public int TransactionProgressPercentage => _transactionProgressPercentage;
+    public string TransactionCurrentPath => _transactionCurrentPath;
+    public string TransactionProgressText => _transactionProgressStage switch
+    {
+        TransactionProgressStage.InspectingPackage => "正在检查更新包",
+        TransactionProgressStage.ValidatingBaseline => "正在重新检查目标基线",
+        TransactionProgressStage.CheckingCapabilities => "正在检查文件系统",
+        TransactionProgressStage.StagingPayloads => "正在准备更新内容",
+        TransactionProgressStage.Applying => $"正在应用更新 ({_transactionProcessedOperations}/{_transactionTotalOperations})",
+        TransactionProgressStage.Verifying => $"正在验证更新结果 ({_transactionProcessedOperations}/{_transactionTotalOperations})",
+        TransactionProgressStage.PreparingRecovery => "正在读取恢复记录",
+        TransactionProgressStage.Recovering => $"正在恢复原文件 ({_transactionProcessedOperations}/{_transactionTotalOperations})",
+        TransactionProgressStage.Completed => "操作完成",
+        _ => string.Empty,
+    };
     public bool HasPackage => _inspection is not null;
     public bool HasConflicts => Conflicts.Count > 0;
     public bool CanValidate => !IsBusy && HasPackage && !string.IsNullOrWhiteSpace(TargetPath);
@@ -226,6 +247,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         }
 
         _errorMessage = string.Empty;
+        ResetTransactionProgress(TransactionProgressStage.InspectingPackage);
         SetState(PatchWorkspaceState.Applying);
         try
         {
@@ -233,7 +255,8 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
                 .Select(conflict => conflict.Resolution)
                 .OfType<ConflictResolution>()
                 .ToArray();
-            ApplyResult result = await _workflow.ApplyAsync(PackagePath, TargetPath, resolutions);
+            Progress<TransactionProgress> progress = new(UpdateTransactionProgress);
+            ApplyResult result = await _workflow.ApplyAsync(PackagePath, TargetPath, resolutions, progress: progress);
             if (result.Baseline.Status == BaselineValidationStatus.Conflict)
             {
                 SetConflicts(result.Baseline.Conflicts);
@@ -286,10 +309,12 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         }
 
         _errorMessage = string.Empty;
+        ResetTransactionProgress(TransactionProgressStage.PreparingRecovery);
         SetState(PatchWorkspaceState.RollingBack);
         try
         {
-            RollbackResult result = await _workflow.RollbackAsync(JournalPath);
+            Progress<TransactionProgress> progress = new(UpdateTransactionProgress);
+            RollbackResult result = await _workflow.RollbackAsync(JournalPath, progress: progress);
             if (result.Succeeded)
             {
                 SetState(PatchWorkspaceState.RolledBack);
@@ -312,6 +337,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         _state = state;
         OnPropertyChanged(nameof(State));
         OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(IsTransactionRunning));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(ShowConflictPanel));
         OnPropertyChanged(nameof(ShowApplyResult));
@@ -370,6 +396,35 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         }
 
         NotifyCommands();
+    }
+
+    private void UpdateTransactionProgress(TransactionProgress progress)
+    {
+        if (!IsTransactionRunning)
+        {
+            return;
+        }
+
+        _transactionProgressStage = progress.Stage;
+        _transactionProgressPercentage = Math.Clamp(progress.Percentage, 0, 100);
+        _transactionProcessedOperations = progress.ProcessedOperations;
+        _transactionTotalOperations = progress.TotalOperations;
+        _transactionCurrentPath = progress.CurrentPath ?? string.Empty;
+        OnPropertyChanged(nameof(TransactionProgressPercentage));
+        OnPropertyChanged(nameof(TransactionProgressText));
+        OnPropertyChanged(nameof(TransactionCurrentPath));
+    }
+
+    private void ResetTransactionProgress(TransactionProgressStage stage)
+    {
+        _transactionProgressStage = stage;
+        _transactionProgressPercentage = 0;
+        _transactionProcessedOperations = 0;
+        _transactionTotalOperations = 0;
+        _transactionCurrentPath = string.Empty;
+        OnPropertyChanged(nameof(TransactionProgressPercentage));
+        OnPropertyChanged(nameof(TransactionProgressText));
+        OnPropertyChanged(nameof(TransactionCurrentPath));
     }
 
     private void SetTargetPath(string path)

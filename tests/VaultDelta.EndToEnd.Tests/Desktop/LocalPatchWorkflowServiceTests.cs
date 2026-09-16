@@ -52,7 +52,15 @@ public sealed class LocalPatchWorkflowServiceTests : IDisposable
         Assert.Equal(8, inspection.VerifiedPayloadBytes);
         Assert.Equal(baseline.SnapshotId, inspection.Manifest.BaseSnapshotId);
         Assert.Equal(target.SnapshotId, inspection.Manifest.TargetSnapshotId);
-        Assert.Equal("0.1.7", inspection.Manifest.GeneratorVersion);
+        Assert.Equal("0.1.8", inspection.Manifest.GeneratorVersion);
+
+        ApplyResult applied = await service.ApplyAsync(output, baselineRoot + Path.DirectorySeparatorChar);
+        Assert.True(applied.Succeeded, applied.Error);
+        Assert.StartsWith(
+            Path.Combine(_root, ".baseline.vaultdelta-transactions"),
+            applied.JournalPath!,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(baselineRoot, "..vaultdelta-transactions")));
     }
 
     private static LocalPatchWorkflowService CreateService(Sha256ContentHasher hasher)

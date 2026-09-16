@@ -34,7 +34,7 @@ SHA256SUMS.txt
 在 PowerShell 中进入 ZIP 所在目录：
 
 ```powershell
-Get-FileHash .\VaultDelta-0.1.7-win-x64.zip -Algorithm SHA256
+Get-FileHash .\VaultDelta-0.1.8-win-x64.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -42,7 +42,7 @@ Get-Content .\SHA256SUMS.txt
 
 ## 安装与首次启动
 
-1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.7-win-x64`。
+1. 将 ZIP 解压到本机普通目录，例如 `D:\Tools\VaultDelta-0.1.8-win-x64`。
 2. 不要直接从 ZIP 内运行；完整解压后，根目录中的 `VaultDelta.exe` 就是启动入口。
 3. 双击 `VaultDelta.exe`。
 4. 程序以当前用户权限运行，不会请求管理员权限。
@@ -70,6 +70,8 @@ Get-Content .\SHA256SUMS.txt
 6. 所有冲突均已选择处理方式后，选择“应用更新包”。应用前会重新检查冲突，目标文件若再次变化，需要重新选择。
 7. 程序会先保存 Journal 和必要备份，再逐项更新并验证。
 
+应用和恢复时，窗口右下角会显示当前阶段、已处理项目数、百分比和当前路径。若应用中断，请先用界面自动填入的 Journal 执行恢复，再重新检查基线。
+
 事务数据位于目标库同级隐藏目录：
 
 ```text
@@ -79,6 +81,8 @@ Get-Content .\SHA256SUMS.txt
 ```
 
 确认新库工作正常前，不要删除该目录。
+
+0.1.7 在目标路径末尾带分隔符时，可能把事务目录错误建在目标库内部，名称为 `..vaultdelta-transactions`。已有 Journal 仍可由新版本恢复；恢复完成前请保留整个目录及备份。
 
 ## 如何核对应用结果
 
