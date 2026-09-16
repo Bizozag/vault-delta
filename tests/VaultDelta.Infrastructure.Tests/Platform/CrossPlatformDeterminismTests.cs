@@ -9,7 +9,7 @@ namespace VaultDelta.Infrastructure.Tests.Platform;
 
 public sealed class CrossPlatformDeterminismTests
 {
-    private const string ExpectedManifestSha256 = "59ca51ee659e17b7ab2e3d2d7b306ab482fbf405c27d07c61a1f97e173bcf54e";
+    private const string ExpectedManifestSha256 = "71e419b41b9603fc6715edd3f73f02c9b72c3bb0b13282409978aec106a94316";
 
     [Fact]
     public void Fixed_unicode_obsidian_fixture_has_a_platform_independent_manifest()

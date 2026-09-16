@@ -20,7 +20,7 @@ public sealed class ObsidianVaultRoundTripTests
 {
     private const string ExpectedBaselineSnapshotId = "sha256:30652d0fe9ede9a6ee1615b6d4cb5baeb69bb25444bf42e94335304d5382ceb9";
     private const string ExpectedTargetSnapshotId = "sha256:d0885a865cc3cf93e00ed29c842fdfee9f6b3cadec4ae81d7ba738bb12e5bfa3";
-    private const string ExpectedManifestSha256 = "013928df64fd7decdb2cb3ea4ec2c94955a7358a3225f26ad837f090c08b9b1f";
+    private const string ExpectedManifestSha256 = "6047abf2168d1e8cfadab0aef28922afe8a9fc5457bf0e116289b9af5b791f33";
 
     [Fact]
     public async Task Fixed_obsidian_fixture_round_trips_compare_zip_apply_and_rollback()

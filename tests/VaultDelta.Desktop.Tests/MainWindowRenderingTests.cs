@@ -47,7 +47,7 @@ public sealed class MainWindowRenderingTests
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("TargetDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchPackageDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchTargetDropZone")!));
-        Assert.Equal("v0.1.5", ((MainWindowViewModel)window.DataContext!).VersionText);
+        Assert.Equal("v0.1.6", ((MainWindowViewModel)window.DataContext!).VersionText);
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "准备就绪");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "未开始事务");
         window.Close();
@@ -229,6 +229,7 @@ public sealed class MainWindowRenderingTests
 
     private static void SaveFrame(MainWindow window, string path)
     {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         Dispatcher.UIThread.RunJobs();
         Bitmap frame = window.GetLastRenderedFrame()

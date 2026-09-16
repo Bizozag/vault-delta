@@ -172,6 +172,7 @@ public static class PatchManifestJson
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = true,
+            NewLine = "\n",
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         };
 
