@@ -67,13 +67,52 @@ public sealed class LocalApplyFileOperations : IApplyFileOperations
         string path = GetTargetPath(targetRoot, relativePath);
         if (entryKind == SnapshotEntryKind.File)
         {
-            File.Delete(path);
+            if (File.Exists(path))
+            {
+                DeleteAddedEntry(path, isDirectory: false);
+            }
+            else
+            {
+                File.Delete(path);
+            }
+
             return;
         }
 
         if (Directory.Exists(path))
         {
-            Directory.Delete(path, recursive: false);
+            DeleteAddedEntry(path, isDirectory: true);
+        }
+    }
+
+    private static void DeleteAddedEntry(string path, bool isDirectory)
+    {
+        FileAttributes originalAttributes = File.GetAttributes(path);
+        bool readOnly = (originalAttributes & FileAttributes.ReadOnly) != 0;
+        if (readOnly)
+        {
+            File.SetAttributes(path, originalAttributes & ~FileAttributes.ReadOnly);
+        }
+
+        try
+        {
+            if (isDirectory)
+            {
+                Directory.Delete(path, recursive: false);
+            }
+            else
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            if (readOnly && (File.Exists(path) || Directory.Exists(path)))
+            {
+                File.SetAttributes(path, originalAttributes);
+            }
+
+            throw;
         }
     }
 

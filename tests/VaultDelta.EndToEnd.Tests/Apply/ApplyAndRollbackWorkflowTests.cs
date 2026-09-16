@@ -226,6 +226,35 @@ public sealed class ApplyAndRollbackWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task Rollback_removes_a_read_only_added_directory()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string vault = Path.Combine(_root, "readonly-vault");
+        string source = Path.Combine(_root, "readonly-source");
+        string package = Path.Combine(_root, "readonly-package");
+        string transactions = Path.Combine(_root, "readonly-transactions");
+        Directory.CreateDirectory(vault);
+        Directory.CreateDirectory(Path.Combine(source, "added-directory"));
+        PatchManifest manifest = Manifest("readonly-patch", PatchOperation.AddDirectory(
+            10, RelativePath.Parse("added-directory")));
+        await new DirectoryPackageWriter(_hasher).WriteAsync(manifest, source, package, cancellationToken: CancellationToken.None);
+        ApplyResult applied = await CreateApplyWorkflow().ApplyAsync(
+            new ApplyRequest(package, vault, transactions, "readonly"));
+        Assert.True(applied.Succeeded, applied.Error);
+
+        string addedDirectory = Path.Combine(vault, "added-directory");
+        File.SetAttributes(addedDirectory, File.GetAttributes(addedDirectory) | FileAttributes.ReadOnly);
+        RollbackResult result = await CreateRollbackWorkflow().RollbackAsync(applied.JournalPath!);
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.False(Directory.Exists(addedDirectory));
+    }
+
+    [Fact]
     public async Task Baseline_conflict_stops_before_lock_journal_or_target_write()
     {
         string vault = Path.Combine(_root, "conflict-vault");

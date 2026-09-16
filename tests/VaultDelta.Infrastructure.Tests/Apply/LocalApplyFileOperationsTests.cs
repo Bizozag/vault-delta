@@ -1,10 +1,53 @@
 using VaultDelta.Domain.Paths;
+using VaultDelta.Domain.Snapshots;
 using VaultDelta.Infrastructure.Apply;
 
 namespace VaultDelta.Infrastructure.Tests.Apply;
 
 public sealed class LocalApplyFileOperationsTests
 {
+    [Theory]
+    [InlineData(SnapshotEntryKind.File)]
+    [InlineData(SnapshotEntryKind.Directory)]
+    public void RemoveAdded_clears_read_only_attribute_before_deleting(SnapshotEntryKind kind)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string root = Path.Combine(Path.GetTempPath(), $"vaultdelta-readonly-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        string name = kind == SnapshotEntryKind.Directory ? "added-directory" : "added-file.txt";
+        string path = Path.Combine(root, name);
+        try
+        {
+            if (kind == SnapshotEntryKind.Directory)
+            {
+                Directory.CreateDirectory(path);
+            }
+            else
+            {
+                File.WriteAllText(path, "added");
+            }
+
+            File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
+            new LocalApplyFileOperations().RemoveAdded(root, RelativePath.Parse(name), kind);
+
+            Assert.False(File.Exists(path));
+            Assert.False(Directory.Exists(path));
+        }
+        finally
+        {
+            if (File.Exists(path) || Directory.Exists(path))
+            {
+                File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+            }
+
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Move_retries_a_temporarily_locked_file_on_Windows()
     {
