@@ -33,6 +33,23 @@ public sealed class BaselineValidatorTests
         Assert.Empty(result.Conflicts);
     }
 
+    [Fact]
+    public async Task ValidateAsync_reports_progress_for_each_operation()
+    {
+        PatchManifest manifest = Manifest(
+            PatchOperation.AddDirectory(10, Path("folder")),
+            PatchOperation.AddDirectory(20, Path("other")));
+        List<BaselineValidationProgress> events = [];
+        InlineProgress progress = new(events);
+
+        await new BaselineValidator(new FakeTargetStateReader(new Dictionary<string, TargetEntryState>()))
+            .ValidateAsync(manifest, "/vault", progress);
+
+        Assert.Equal(new[] { 0, 1, 2 }, events.Select(item => item.ProcessedOperations).ToArray());
+        Assert.All(events, item => Assert.Equal(2, item.TotalOperations));
+        Assert.Equal("other", events[^1].CurrentPath);
+    }
+
     [Theory]
     [InlineData("missing", BaselineConflictType.MissingExpected)]
     [InlineData("content", BaselineConflictType.UnexpectedContent)]
@@ -133,5 +150,10 @@ public sealed class BaselineValidatorTests
                     ? state
                     : TargetEntryState.Missing);
         }
+    }
+
+    private sealed class InlineProgress(List<BaselineValidationProgress> events) : IProgress<BaselineValidationProgress>
+    {
+        public void Report(BaselineValidationProgress value) => events.Add(value);
     }
 }

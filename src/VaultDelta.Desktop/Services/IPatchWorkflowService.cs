@@ -20,6 +20,7 @@ public interface IPatchWorkflowService
     ValueTask<BaselineValidationResult> ValidateAsync(
         PackageInspectionResult inspection,
         string targetRoot,
+        IProgress<BaselineValidationProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     ValueTask<ApplyResult> ApplyAsync(

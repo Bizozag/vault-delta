@@ -49,8 +49,9 @@ public sealed class LocalPatchWorkflowService(
     public ValueTask<BaselineValidationResult> ValidateAsync(
         PackageInspectionResult inspection,
         string targetRoot,
+        IProgress<BaselineValidationProgress>? progress = null,
         CancellationToken cancellationToken = default) =>
-        _baselineValidator.ValidateAsync(inspection.Manifest, targetRoot, cancellationToken);
+        _baselineValidator.ValidateAsync(inspection.Manifest, targetRoot, progress, cancellationToken);
 
     public ValueTask<ApplyResult> ApplyAsync(
         string packagePath,

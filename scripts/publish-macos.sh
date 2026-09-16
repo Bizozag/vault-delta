@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="0.1.9"
+version="0.1.10"
 configuration="Release"
 output_root=""
 skip_verify=false

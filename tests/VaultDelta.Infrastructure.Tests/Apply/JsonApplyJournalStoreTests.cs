@@ -34,6 +34,30 @@ public sealed class JsonApplyJournalStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAsync_retries_when_existing_journal_is_temporarily_locked()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string path = Path.Combine(_root, "locked-journal.json");
+        JsonApplyJournalStore store = new();
+        ApplyJournal journal = CreateJournal();
+        await store.SaveAsync(path, journal);
+        using FileStream held = new(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        Task save = store.SaveAsync(path, journal.WithStatus(ApplyJournalStatus.Applying)).AsTask();
+        await Task.Delay(350);
+        held.Dispose();
+        await save;
+
+        ApplyJournal loaded = await store.LoadAsync(path);
+        Assert.Equal(ApplyJournalStatus.Applying, loaded.Status);
+        Assert.Empty(Directory.EnumerateFiles(_root, "*.tmp"));
+    }
+
+    [Fact]
     public async Task LoadAsync_rejects_corrupted_json()
     {
         string path = Path.Combine(_root, "bad.json");

@@ -48,7 +48,7 @@ public sealed class MainWindowRenderingTests
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("TargetDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchPackageDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchTargetDropZone")!));
-        Assert.Equal("v0.1.9", ((MainWindowViewModel)window.DataContext!).VersionText);
+        Assert.Equal("v0.1.10", ((MainWindowViewModel)window.DataContext!).VersionText);
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "准备就绪");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "未开始事务");
         window.Close();
@@ -330,7 +330,7 @@ public sealed class MainWindowRenderingTests
         }
 
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, IProgress<BaselineValidationProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
@@ -339,7 +339,7 @@ public sealed class MainWindowRenderingTests
     {
         public ValueTask BuildAsync(CompareResult comparison, string sourceRoot, string outputPath, IProgress<PackageBuildProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => ValueTask.FromResult(inspection);
-        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult packageInspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(validation);
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult packageInspection, string targetRoot, IProgress<BaselineValidationProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromResult(validation);
         public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromResult(new ApplyResult(ApplyJournalStatus.Committed, validation, "journal.json", null));
         public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromResult(new RollbackResult(ApplyJournalStatus.RolledBack, journalPath, null));
     }

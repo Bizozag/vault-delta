@@ -14,11 +14,20 @@ public sealed class BaselineValidator(ITargetStateReader targetStateReader)
         PatchManifest manifest,
         string targetRoot,
         CancellationToken cancellationToken = default)
+        => await ValidateAsync(manifest, targetRoot, null, cancellationToken).ConfigureAwait(false);
+
+    public async ValueTask<BaselineValidationResult> ValidateAsync(
+        PatchManifest manifest,
+        string targetRoot,
+        IProgress<BaselineValidationProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetRoot);
 
         List<BaselineConflict> conflicts = [];
+        int processed = 0;
+        progress?.Report(new BaselineValidationProgress(0, manifest.Operations.Count, null));
         foreach (PatchOperation operation in manifest.Operations)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -59,6 +68,12 @@ public sealed class BaselineValidator(ITargetStateReader targetStateReader)
                         target.Fingerprint));
                 }
             }
+
+            processed++;
+            progress?.Report(new BaselineValidationProgress(
+                processed,
+                manifest.Operations.Count,
+                (operation.TargetPath ?? operation.BasePath)?.Value));
         }
 
         return new BaselineValidationResult(conflicts);

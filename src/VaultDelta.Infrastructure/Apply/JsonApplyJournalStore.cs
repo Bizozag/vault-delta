@@ -33,33 +33,54 @@ public sealed class JsonApplyJournalStore : IApplyJournalStore
         }
 
         Directory.CreateDirectory(parent);
-        string temporaryPath = $"{path}.tmp";
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(ToDocument(journal), _options);
+        const int maxAttempts = 8;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            string temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                await using (FileStream stream = new(
+                    temporaryPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    64 * 1024,
+                    FileOptions.Asynchronous | FileOptions.WriteThrough))
+                {
+                    await stream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
 
+                File.Move(temporaryPath, path, overwrite: true);
+                return;
+            }
+            catch (Exception exception) when (IsTransientAccessError(exception) && attempt < maxAttempts)
+            {
+                TryDeleteTemporary(temporaryPath);
+                await Task.Delay(200 * attempt, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                TryDeleteTemporary(temporaryPath);
+                throw;
+            }
+        }
+    }
+
+    private static bool IsTransientAccessError(Exception exception) =>
+        (exception is IOException or UnauthorizedAccessException)
+        && (exception.HResult & 0xFFFF) is 5 or 32 or 33;
+
+    private static void TryDeleteTemporary(string path)
+    {
         try
         {
-            await using (FileStream stream = new(
-                temporaryPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                64 * 1024,
-                FileOptions.Asynchronous | FileOptions.WriteThrough))
-            {
-                await stream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            File.Move(temporaryPath, path, overwrite: true);
+            File.Delete(path);
         }
-        catch
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-
-            throw;
+            // Preserve the original journal write error if a sync client also holds the temporary file.
         }
     }
 

@@ -261,7 +261,7 @@ public sealed class CompareWorkspaceViewModelTests
         }
 
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, IProgress<BaselineValidationProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
@@ -280,7 +280,7 @@ public sealed class CompareWorkspaceViewModelTests
         }
 
         public ValueTask<PackageInspectionResult> InspectAsync(string packagePath, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, IProgress<BaselineValidationProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<RollbackResult> RollbackAsync(string journalPath, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

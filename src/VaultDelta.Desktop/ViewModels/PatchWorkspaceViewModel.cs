@@ -64,13 +64,15 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
     public string ErrorMessage => _errorMessage;
     public PatchWorkspaceState State => _state;
     public bool IsBusy => State is PatchWorkspaceState.Inspecting or PatchWorkspaceState.Validating or PatchWorkspaceState.Applying or PatchWorkspaceState.RollingBack;
-    public bool IsTransactionRunning => State is PatchWorkspaceState.Applying or PatchWorkspaceState.RollingBack;
+    public bool IsTransactionRunning => State is PatchWorkspaceState.Validating or PatchWorkspaceState.Applying or PatchWorkspaceState.RollingBack;
     public int TransactionProgressPercentage => _transactionProgressPercentage;
     public string TransactionCurrentPath => _transactionCurrentPath;
     public string TransactionProgressText => _transactionProgressStage switch
     {
         TransactionProgressStage.InspectingPackage => "正在检查更新包",
-        TransactionProgressStage.ValidatingBaseline => "正在重新检查目标基线",
+        TransactionProgressStage.ValidatingBaseline => State == PatchWorkspaceState.Validating
+            ? $"正在检查目标基线 ({_transactionProcessedOperations}/{_transactionTotalOperations})"
+            : "正在重新检查目标基线",
         TransactionProgressStage.CheckingCapabilities => "正在检查文件系统",
         TransactionProgressStage.StagingPayloads => "正在准备更新内容",
         TransactionProgressStage.Applying => $"正在应用更新 ({_transactionProcessedOperations}/{_transactionTotalOperations})",
@@ -222,10 +224,12 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
 
         Conflicts.Clear();
         _errorMessage = string.Empty;
+        ResetTransactionProgress(TransactionProgressStage.ValidatingBaseline);
         SetState(PatchWorkspaceState.Validating);
         try
         {
-            BaselineValidationResult result = await _workflow.ValidateAsync(_inspection, TargetPath);
+            Progress<BaselineValidationProgress> progress = new(UpdateBaselineProgress);
+            BaselineValidationResult result = await _workflow.ValidateAsync(_inspection, TargetPath, progress);
             SetConflicts(result.Conflicts);
 
             SetState(result.Status == BaselineValidationStatus.Pass
@@ -338,6 +342,7 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(State));
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(IsTransactionRunning));
+        OnPropertyChanged(nameof(TransactionProgressText));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(ShowConflictPanel));
         OnPropertyChanged(nameof(ShowApplyResult));
@@ -413,6 +418,24 @@ public sealed class PatchWorkspaceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(TransactionProgressPercentage));
         OnPropertyChanged(nameof(TransactionProgressText));
         OnPropertyChanged(nameof(TransactionCurrentPath));
+    }
+
+    private void UpdateBaselineProgress(BaselineValidationProgress progress)
+    {
+        if (State != PatchWorkspaceState.Validating)
+        {
+            return;
+        }
+
+        int percentage = progress.TotalOperations == 0
+            ? 100
+            : (int)(100L * progress.ProcessedOperations / progress.TotalOperations);
+        UpdateTransactionProgress(new TransactionProgress(
+            TransactionProgressStage.ValidatingBaseline,
+            percentage,
+            progress.ProcessedOperations,
+            progress.TotalOperations,
+            progress.CurrentPath));
     }
 
     private void ResetTransactionProgress(TransactionProgressStage stage)

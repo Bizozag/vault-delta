@@ -33,6 +33,29 @@ public sealed class PatchWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task Baseline_check_shows_progress_panel_while_validation_is_running()
+    {
+        TaskCompletionSource<BaselineValidationResult> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakePatchWorkflow workflow = new()
+        {
+            Inspection = Inspection(),
+            ValidationTask = completion.Task,
+        };
+        PatchWorkspaceViewModel viewModel = Create(workflow, patch: "D:/patch.zip", target: "D:/vault");
+        await viewModel.OpenPatchAsync();
+        await viewModel.SelectTargetAsync();
+
+        Task validation = viewModel.ValidateAsync();
+        Assert.Equal(PatchWorkspaceState.Validating, viewModel.State);
+        Assert.True(viewModel.IsTransactionRunning);
+        Assert.Contains("正在检查目标基线", viewModel.TransactionProgressText);
+
+        completion.SetResult(new BaselineValidationResult([]));
+        await validation;
+        Assert.False(viewModel.IsTransactionRunning);
+    }
+
+    [Fact]
     public async Task Baseline_conflict_is_listed_and_never_enables_apply()
     {
         FakePatchWorkflow workflow = new()
@@ -245,6 +268,7 @@ public sealed class PatchWorkspaceViewModelTests
         public PackageInspectionResult? Inspection { get; init; }
         public Exception? InspectionError { get; init; }
         public BaselineValidationResult Validation { get; init; } = new([]);
+        public Task<BaselineValidationResult>? ValidationTask { get; init; }
         public ApplyResult ApplyResult { get; init; } = new(ApplyJournalStatus.Committed, new BaselineValidationResult([]), "journal.json", null);
         public RollbackResult RollbackResult { get; init; } = new(ApplyJournalStatus.RolledBack, "journal.json", null);
         public int ApplyCalls { get; private set; }
@@ -262,7 +286,8 @@ public sealed class PatchWorkspaceViewModelTests
                 : ValueTask.FromException<PackageInspectionResult>(InspectionError);
         }
 
-        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, CancellationToken cancellationToken = default) => ValueTask.FromResult(Validation);
+        public ValueTask<BaselineValidationResult> ValidateAsync(PackageInspectionResult inspection, string targetRoot, IProgress<BaselineValidationProgress>? progress = null, CancellationToken cancellationToken = default) =>
+            ValidationTask is null ? ValueTask.FromResult(Validation) : new ValueTask<BaselineValidationResult>(ValidationTask);
 
         public ValueTask<ApplyResult> ApplyAsync(string packagePath, string targetRoot, IReadOnlyList<ConflictResolution>? resolutions = null, IProgress<TransactionProgress>? progress = null, CancellationToken cancellationToken = default)
         {

@@ -88,6 +88,7 @@ public sealed class ApplyWorkflow(
         await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
 
         PatchOperation? currentOperation = null;
+        string currentPhase = string.Empty;
         try
         {
             _faultInjector.ThrowIfRequested(ApplyFaultPoint.AfterPreparedJournal);
@@ -99,9 +100,11 @@ public sealed class ApplyWorkflow(
             foreach (PatchOperation operation in plannedOperations)
             {
                 currentOperation = operation;
+                currentPhase = "检查目标状态";
                 cancellationToken.ThrowIfCancellationRequested();
                 await ValidateBeforeMutationAsync(operation, request.TargetRoot, cancellationToken).ConfigureAwait(false);
 
+                currentPhase = "准备备份";
                 string? backupRelativePath = operation.Type == PatchOperationType.Delete
                     ? _backupStore.GetDeletedBackupRelativePath(operation.BasePath!, operation.EntryKind)
                     : await PrepareAsync(
@@ -109,6 +112,7 @@ public sealed class ApplyWorkflow(
                         request.TargetRoot,
                         transaction.BackupRoot,
                         cancellationToken).ConfigureAwait(false);
+                currentPhase = "记录备份状态";
                 journal = journal.WithOperationStatus(
                     operation.Sequence,
                     ApplyOperationStatus.BackupCompleted,
@@ -128,10 +132,13 @@ public sealed class ApplyWorkflow(
 
                 _faultInjector.ThrowIfRequested(ApplyFaultPoint.AfterBackup, operation.Sequence);
 
+                currentPhase = "写入目标文件";
                 await MutateAsync(operation, request.TargetRoot, payloads, cancellationToken).ConfigureAwait(false);
                 _faultInjector.ThrowIfRequested(ApplyFaultPoint.AfterTargetMutation, operation.Sequence);
+                currentPhase = "校验目标文件";
                 await VerifyAppliedAsync(operation, request.TargetRoot, cancellationToken).ConfigureAwait(false);
 
+                currentPhase = "保存恢复记录";
                 journal = journal.WithOperationStatus(operation.Sequence, ApplyOperationStatus.Completed);
                 await _journalStore.SaveAsync(transaction.JournalPath, journal, cancellationToken).ConfigureAwait(false);
                 _faultInjector.ThrowIfRequested(ApplyFaultPoint.AfterOperationJournal, operation.Sequence);
@@ -171,16 +178,24 @@ public sealed class ApplyWorkflow(
         }
         catch (Exception exception)
         {
+            string journalSaveError = string.Empty;
             if (journal.Status is ApplyJournalStatus.Prepared or ApplyJournalStatus.Applying or ApplyJournalStatus.Verifying)
             {
                 journal = journal.WithStatus(ApplyJournalStatus.NeedsRollback);
-                await _journalStore.SaveAsync(transaction.JournalPath, journal, CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    await _journalStore.SaveAsync(transaction.JournalPath, journal, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception saveException) when (saveException is IOException or UnauthorizedAccessException)
+                {
+                    journalSaveError = $" 恢复记录状态写入失败：{saveException.Message}";
+                }
             }
 
             string operationContext = currentOperation is null
                 ? string.Empty
-                : $"操作 {currentOperation.Sequence} ({currentOperation.Type}, {(currentOperation.TargetPath ?? currentOperation.BasePath)?.Value})：";
-            return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, operationContext + exception.Message);
+                : $"操作 {currentOperation.Sequence} ({currentOperation.Type}, {(currentOperation.TargetPath ?? currentOperation.BasePath)?.Value})，{currentPhase}时：";
+            return new ApplyResult(journal.Status, acceptedBaseline, transaction.JournalPath, operationContext + exception.Message + journalSaveError);
         }
     }
 
