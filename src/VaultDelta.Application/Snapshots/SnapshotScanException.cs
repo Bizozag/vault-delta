@@ -11,4 +11,14 @@ public sealed class SnapshotScanException : Exception
         : base(message, innerException)
     {
     }
+
+    public SnapshotScanException(string message, string rootPath, string? relativePath, Exception? innerException = null)
+        : base(message, innerException)
+    {
+        RootPath = rootPath;
+        RelativePath = relativePath;
+    }
+
+    public string? RootPath { get; }
+    public string? RelativePath { get; }
 }

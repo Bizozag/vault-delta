@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using VaultDelta.Application.Compare;
 using VaultDelta.Application.Patches;
+using VaultDelta.Application.Snapshots;
 using VaultDelta.Desktop.Services;
 using VaultDelta.Domain.Diffs;
 
@@ -28,6 +29,8 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     private int _processedEntries;
     private string _currentPath = string.Empty;
     private string _errorMessage = string.Empty;
+    private bool _skipLinks;
+    private int _comparisonGeneration;
     private int _patchBuildProgressPercentage;
     private string _patchBuildCurrentPath = string.Empty;
     private PackageBuildStage _patchBuildStage = PackageBuildStage.Preparing;
@@ -73,6 +76,34 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         get => _targetPath;
         set => SetPath(ref _targetPath, value, nameof(TargetPath));
     }
+
+    public bool SkipLinks
+    {
+        get => _skipLinks;
+        set
+        {
+            if (IsBusy || _skipLinks == value)
+            {
+                return;
+            }
+
+            _skipLinks = value;
+            _result = null;
+            IsPatchBuilt = false;
+            BuiltPatchPath = string.Empty;
+            _errorMessage = string.Empty;
+            FilteredEntries.Clear();
+            SetState(CanSelectCompare() ? CompareSessionState.Ready : CompareSessionState.Empty);
+            OnPropertyChanged();
+            NotifyResultProperties();
+        }
+    }
+
+    public bool CanChangeScope => !IsBusy;
+    public bool HasExcludedLinks => _result?.ExcludedLinkPaths.Count > 0;
+    public string ExcludedLinksText => _result is null ? string.Empty
+        : $"已跳过 {_result.ExcludedLinkPaths.Count} 个链接路径（两侧同名路径及其子目录均不纳入比较）。链接关系需在目标电脑另行恢复。";
+    public string ExcludedLinkPathsText => _result is null ? string.Empty : string.Join(Environment.NewLine, _result.ExcludedLinkPaths);
 
     public CompareSessionState State => _state;
     public CompareFilter Filter => _filter;
@@ -177,11 +208,19 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
 
         try
         {
-            Progress<CompareProgress> progress = new(UpdateProgress);
+            int generation = ++_comparisonGeneration;
+            Progress<CompareProgress> progress = new(value =>
+            {
+                if (generation == _comparisonGeneration && IsComparing)
+                {
+                    UpdateProgress(value);
+                }
+            });
             _result = await _compareService.CompareAsync(
                 BaselinePath,
                 TargetPath,
                 progress,
+                SkipLinks,
                 _comparisonCancellation.Token);
             _filter = CompareFilter.All;
             RefreshEntries();
@@ -198,6 +237,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         }
         finally
         {
+            _comparisonGeneration++;
             NotifyResultProperties();
         }
     }
@@ -366,6 +406,7 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
         _state = state;
         OnPropertyChanged(nameof(State));
         OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(CanChangeScope));
         OnPropertyChanged(nameof(IsComparing));
         OnPropertyChanged(nameof(IsGeneratingPatch));
         OnPropertyChanged(nameof(CanCompare));
@@ -404,6 +445,9 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
     private void NotifyResultProperties()
     {
         OnPropertyChanged(nameof(HasResult));
+        OnPropertyChanged(nameof(HasExcludedLinks));
+        OnPropertyChanged(nameof(ExcludedLinksText));
+        OnPropertyChanged(nameof(ExcludedLinkPathsText));
         OnPropertyChanged(nameof(IsEmptyState));
         OnPropertyChanged(nameof(HasChanges));
         OnPropertyChanged(nameof(HasNoChanges));
@@ -424,9 +468,13 @@ public sealed class CompareWorkspaceViewModel : INotifyPropertyChanged, IDisposa
 
     private static string ToUserMessage(Exception exception) => exception switch
     {
+        SnapshotScanException scan => string.Join(Environment.NewLine,
+            new[] { scan.Message, scan.RootPath is null ? null : $"快照：{scan.RootPath}",
+                scan.RelativePath is null ? null : $"路径：{scan.RelativePath}" }.Where(value => value is not null)),
         DirectoryNotFoundException => "所选目录不存在或已被移动，请重新选择。",
         UnauthorizedAccessException => "无法读取所选目录，请检查文件权限。",
         ArgumentException => exception.Message,
+        IOException => exception.Message,
         _ => "无法安全完成比较。请检查目录、权限和正在写入的文件后重试。",
     };
 

@@ -40,19 +40,23 @@ public sealed class LocalPatchWorkflowServiceTests : IDisposable
             baseline,
             target,
             differences,
-            new CompareSummary(1, 1, 0, 0, 0, 2, 8, 0));
+            new CompareSummary(1, 1, 0, 0, 0, 2, 8, 0))
+        {
+            ExcludedLinkPaths = ["node_modules/local"],
+        };
         LocalPatchWorkflowService service = CreateService(hasher);
 
         await service.BuildAsync(comparison, targetRoot, output);
         PackageInspectionResult inspection = await service.InspectAsync(output);
 
         Assert.True(File.Exists(output));
+        Assert.Contains("node_modules/local", await File.ReadAllTextAsync(output + ".excluded-links.json"));
         Assert.Equal(2, inspection.Manifest.Operations.Count);
         Assert.Equal(2, inspection.VerifiedPayloadCount);
         Assert.Equal(8, inspection.VerifiedPayloadBytes);
         Assert.Equal(baseline.SnapshotId, inspection.Manifest.BaseSnapshotId);
         Assert.Equal(target.SnapshotId, inspection.Manifest.TargetSnapshotId);
-        Assert.Equal("0.1.10", inspection.Manifest.GeneratorVersion);
+        Assert.Equal("0.1.11", inspection.Manifest.GeneratorVersion);
 
         ApplyResult applied = await service.ApplyAsync(output, baselineRoot + Path.DirectorySeparatorChar);
         Assert.True(applied.Succeeded, applied.Error);

@@ -1,6 +1,7 @@
 using VaultDelta.Application.Snapshots;
 using VaultDelta.Domain.Diffs;
 using VaultDelta.Domain.Snapshots;
+using VaultDelta.Domain.Rules;
 
 namespace VaultDelta.Application.Compare;
 
@@ -17,11 +18,31 @@ public sealed class CompareWorkflow(SnapshotScanner scanner)
         ValidateRoots(request.BaselinePath, request.TargetPath);
         ArgumentNullException.ThrowIfNull(request.Rules);
 
+        string[] excludedLinks = [];
+        SnapshotRuleSet rules = request.Rules;
+        if (request.SkipLinks)
+        {
+            progress?.Report(new CompareProgress(CompareStage.ScanningBaseline, 0, "正在检查链接"));
+            IReadOnlyList<string> baselineLinks = await _scanner.FindLinkedPathsAsync(request.BaselinePath, rules, cancellationToken).ConfigureAwait(false);
+            progress?.Report(new CompareProgress(CompareStage.ScanningTarget, 0, "正在检查链接"));
+            IReadOnlyList<string> targetLinks = await _scanner.FindLinkedPathsAsync(request.TargetPath, rules, cancellationToken).ConfigureAwait(false);
+            excludedLinks = baselineLinks.Concat(targetLinks).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            if (excludedLinks.Length > 0)
+            {
+                IEnumerable<SnapshotRule> exclusions = excludedLinks.SelectMany((path, index) => new[]
+                {
+                    new SnapshotRule($"skip-link-{index}", SnapshotRuleAction.Exclude, path),
+                    new SnapshotRule($"skip-link-tree-{index}", SnapshotRuleAction.Exclude, $"{path}/**"),
+                });
+                rules = SnapshotRuleSet.Create($"{rules.Name}-skip-links-v1", rules.Rules.Concat(exclusions));
+            }
+        }
+
         progress?.Report(new CompareProgress(CompareStage.ScanningBaseline, 0));
         SnapshotInventory baseline = await _scanner
             .ScanAsync(
                 request.BaselinePath,
-                request.Rules,
+                rules,
                 new ForwardingProgress(progress, CompareStage.ScanningBaseline),
                 cancellationToken)
             .ConfigureAwait(false);
@@ -31,17 +52,33 @@ public sealed class CompareWorkflow(SnapshotScanner scanner)
         SnapshotInventory target = await _scanner
             .ScanAsync(
                 request.TargetPath,
-                request.Rules,
+                rules,
                 new ForwardingProgress(progress, CompareStage.ScanningTarget),
                 cancellationToken)
             .ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new CompareProgress(CompareStage.Comparing, 0));
+        HashSet<string> targetDirectories = target.Entries
+            .Where(entry => entry.Kind == SnapshotEntryKind.Directory)
+            .Select(entry => entry.Path.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (SnapshotEntry directory in baseline.Entries.Where(entry => entry.Kind == SnapshotEntryKind.Directory))
+        {
+            if (!targetDirectories.Contains(directory.Path.Value)
+                && excludedLinks.Any(path => path.StartsWith(directory.Path.Value + "/", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new SnapshotScanException("跳过的链接位于将被删除或替换的父目录中。请先整理该目录，避免更新时连同链接一起移除。",
+                    request.BaselinePath, directory.Path.Value);
+            }
+        }
+
         DiffSet differences = DiffEngine.Compare(baseline, target);
         CompareSummary summary = Summarize(differences);
         progress?.Report(new CompareProgress(CompareStage.Completed, differences.Entries.Count));
-        return new CompareResult(baseline, target, differences, summary);
+        return new CompareResult(baseline, target, differences, summary)
+        {
+            ExcludedLinkPaths = Array.AsReadOnly(excludedLinks),
+        };
     }
 
     private static CompareSummary Summarize(DiffSet differences)

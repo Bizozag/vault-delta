@@ -10,6 +10,65 @@ namespace VaultDelta.Application.Tests.Compare;
 public sealed class CompareWorkflowTests
 {
     [Fact]
+    public async Task Skip_links_blocks_removing_a_parent_that_contains_an_excluded_link()
+    {
+        FileSystemEntryMetadata parent = new(Path.Combine(Root("baseline"), "parent"), "parent", FileSystemEntryType.Directory, 0, DateTimeOffset.UnixEpoch, false);
+        RootedFileSystem fileSystem = new(new Dictionary<string, IReadOnlyList<FileSystemEntryMetadata>>
+        {
+            [Root("baseline")] = [parent, parent with { RelativePath = "parent/link", IsLink = true }],
+            [Root("target")] = [],
+        });
+        CompareWorkflow workflow = new(new SnapshotScanner(fileSystem, new PathHasher(fileSystem)));
+
+        SnapshotScanException error = await Assert.ThrowsAsync<SnapshotScanException>(async () =>
+            await workflow.RunAsync(new CompareRequest(Root("baseline"), Root("target"), EmptyRules(), SkipLinks: true)));
+
+        Assert.Equal("parent", error.RelativePath);
+        Assert.Contains("父目录", error.Message);
+    }
+
+    [Fact]
+    public async Task Skip_links_excludes_the_same_subtree_on_both_sides_without_hashing_links()
+    {
+        FileSystemEntryMetadata linked = new(Path.Combine(Root("target"), "deps"), "deps", FileSystemEntryType.Directory, 0, DateTimeOffset.UnixEpoch, true);
+        RootedFileSystem fileSystem = new(new Dictionary<string, IReadOnlyList<FileSystemEntryMetadata>>
+        {
+            [Root("baseline")] = [linked with { FullPath = Path.Combine(Root("baseline"), "deps"), IsLink = false }, File(Root("baseline"), "deps/old.md", 3, "old")],
+            [Root("target")] = [linked, File(Root("target"), "source.md", 3, "source")],
+        });
+        CompareWorkflow workflow = new(new SnapshotScanner(fileSystem, new PathHasher(fileSystem)));
+
+        CompareResult result = await workflow.RunAsync(new CompareRequest(Root("baseline"), Root("target"), EmptyRules(), SkipLinks: true));
+
+        Assert.Equal(["deps"], result.ExcludedLinkPaths);
+        Assert.Empty(result.Baseline.Entries);
+        Assert.Equal("source.md", Assert.Single(result.Target.Entries).Path.Value);
+        Assert.Equal(0, result.Summary.DeletedCount);
+        Assert.Equal(1, result.Summary.AddedCount);
+        Assert.Equal(result.Baseline.RulesId, result.Target.RulesId);
+        Assert.NotEqual(EmptyRules().RulesId, result.Baseline.RulesId);
+    }
+
+    [Fact]
+    public async Task Default_compare_rejects_links_with_root_and_path_details()
+    {
+        FileSystemEntryMetadata linked = new(Path.Combine(Root("target"), "deps"), "deps", FileSystemEntryType.Directory, 0, DateTimeOffset.UnixEpoch, true);
+        RootedFileSystem fileSystem = new(new Dictionary<string, IReadOnlyList<FileSystemEntryMetadata>>
+        {
+            [Root("baseline")] = [],
+            [Root("target")] = [linked],
+        });
+        CompareWorkflow workflow = new(new SnapshotScanner(fileSystem, new PathHasher(fileSystem)));
+
+        SnapshotScanException error = await Assert.ThrowsAsync<SnapshotScanException>(async () =>
+            await workflow.RunAsync(new CompareRequest(Root("baseline"), Root("target"), EmptyRules())));
+
+        Assert.Equal(Root("target"), error.RootPath);
+        Assert.Equal("deps", error.RelativePath);
+        Assert.Contains("跳过链接", error.Message);
+    }
+
+    [Fact]
     public async Task RunAsync_scans_both_roots_reports_stages_and_summarizes_changes()
     {
         RootedFileSystem fileSystem = new(

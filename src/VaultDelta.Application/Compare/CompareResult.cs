@@ -7,4 +7,7 @@ public sealed record CompareResult(
     SnapshotInventory Baseline,
     SnapshotInventory Target,
     DiffSet Differences,
-    CompareSummary Summary);
+    CompareSummary Summary)
+{
+    public IReadOnlyList<string> ExcludedLinkPaths { get; init; } = [];
+}

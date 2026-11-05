@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.10',
+    [string]$Version = '0.1.11',
 
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
@@ -157,7 +157,12 @@ try {
         }
     }
 
-    Move-Item -LiteralPath $publishDirectory -Destination $packageDirectory
+    $resolvedPublishDirectory = (Resolve-Path -LiteralPath $publishDirectory).ProviderPath
+    $resolvedStagingPrefix = [System.IO.Path]::GetFullPath($stagingRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $resolvedPublishDirectory.StartsWith($resolvedStagingPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Publish directory escaped the expected staging root.'
+    }
+    Move-Item -LiteralPath $resolvedPublishDirectory -Destination $packageDirectory
     Compress-Archive -LiteralPath $packageDirectory -DestinationPath $archivePath -CompressionLevel Optimal
     $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
     "$archiveHash  $([System.IO.Path]::GetFileName($archivePath))" | Set-Content -LiteralPath $checksumPath -Encoding ascii
@@ -171,6 +176,12 @@ try {
 }
 finally {
     if (Test-Path -LiteralPath $stagingRoot) {
-        Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+        $resolvedStagingRoot = (Resolve-Path -LiteralPath $stagingRoot).ProviderPath
+        $expectedTempPrefix = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $resolvedStagingRoot.StartsWith($expectedTempPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+            -not ([System.IO.Path]::GetFileName($resolvedStagingRoot).StartsWith('vaultdelta-windows-package-', [StringComparison]::Ordinal))) {
+            throw 'Refusing to clean an unexpected staging directory.'
+        }
+        Remove-Item -LiteralPath $resolvedStagingRoot -Recurse -Force
     }
 }

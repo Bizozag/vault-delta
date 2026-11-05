@@ -146,6 +146,9 @@
                                         </Border>
                                     </Grid>
 
+                                    <CheckBox x:Name="SkipLinksCheckBox" IsChecked="{Binding SkipLinks}" IsEnabled="{Binding CanChangeScope}"
+                                              Content="跳过链接（目录联接 / 符号链接）；保留普通文件，结果中列出跳过路径" />
+
                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                                         <TextBlock Text="当前比较全部文件；路径与文件系统安全检查始终启用" Classes="muted" FontSize="11" VerticalAlignment="Center" />
                                         <Button Grid.Column="1" x:Name="CancelCompareButton" Content="取消" Classes="secondary" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
@@ -193,6 +196,16 @@
                             </Border>
 
                             <StackPanel x:Name="CompareResultPanel" Spacing="14" IsVisible="{Binding HasResult}">
+                                <Border x:Name="ExcludedLinksPanel" Classes="card" Padding="16" IsVisible="{Binding HasExcludedLinks}" BorderBrush="#E7BDA1">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding ExcludedLinksText}" TextWrapping="Wrap" Foreground="#934A24" />
+                                        <Expander Header="查看跳过路径（生成 ZIP 时会另存链接排除清单）">
+                                            <ScrollViewer MaxHeight="160">
+                                                <SelectableTextBlock Text="{Binding ExcludedLinkPathsText}" TextWrapping="Wrap" FontSize="11" />
+                                            </ScrollViewer>
+                                        </Expander>
+                                    </StackPanel>
+                                </Border>
                                 <Grid ColumnDefinitions="*,*,*,*,1.35*,*" ColumnSpacing="10">
                                     <Border Grid.Column="0" Classes="metric"><StackPanel><TextBlock Text="{Binding AddedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#087C6A"/><TextBlock Text="新增" Classes="muted" FontSize="11"/></StackPanel></Border>
                                     <Border Grid.Column="1" Classes="metric"><StackPanel><TextBlock Text="{Binding ModifiedCount}" FontSize="22" FontWeight="SemiBold" Foreground="#356A8A"/><TextBlock Text="修改" Classes="muted" FontSize="11"/></StackPanel></Border>
@@ -223,8 +236,14 @@
                                             <TextBlock Text="两个快照内容一致，无需生成更新包。" HorizontalAlignment="Center" Foreground="#075F52" FontWeight="SemiBold" />
                                         </Border>
 
-                                        <ItemsControl ItemsSource="{Binding FilteredEntries}" IsVisible="{Binding HasChanges}">
-                                            <ItemsControl.ItemTemplate>
+                                        <ListBox x:Name="DiffReviewList" ItemsSource="{Binding FilteredEntries}" IsVisible="{Binding HasChanges}" Height="380"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" Background="Transparent" BorderThickness="0">
+                                            <ListBox.Styles>
+                                                <Style Selector="ListBoxItem">
+                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                </Style>
+                                            </ListBox.Styles>
+                                            <ListBox.ItemTemplate>
                                                 <DataTemplate x:DataType="vm:DiffReviewItemViewModel">
                                                     <Border Padding="12,10" Margin="0,0,0,7" CornerRadius="8" Background="#F8F8F5" BorderBrush="#E2E3DE" BorderThickness="1">
                                                         <Grid ColumnDefinitions="82,*,Auto" ColumnSpacing="12">
@@ -240,8 +259,8 @@
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
 
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Text="下一步将把审核结果交给更新包生成 Gate。" Classes="muted" FontSize="11" VerticalAlignment="Center" />

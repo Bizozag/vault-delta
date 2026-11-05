@@ -6,6 +6,8 @@ MVP 面向 Windows 与 macOS，采用 C#、.NET 10 LTS 和 Avalonia。默认生�
 
 ## 当前状态
 
+0.1.11 修复包含开发目录联接时只显示通用比较错误的问题。可明确选择“跳过链接”，查看两侧排除路径并生成链接排除清单；默认仍拒绝链接。大批量风险分类复用索引，差异列表采用虚拟化显示。
+
 核心 MVP 工作流、Avalonia 桌面界面、固定 Obsidian E2E fixture、性能基线以及 Windows/macOS 发布脚本已经实现。当前进入跨平台发布收尾阶段：Windows `win-x64` 候选包已完成本机验证；macOS `osx-arm64` 与 `osx-x64` 应用包和 CI 门禁已实现，仍需在 macOS runner/真实 Mac 上执行原生验收，并继续完成 Developer ID 签名、公证和 DMG。
 
 ## 核心目标

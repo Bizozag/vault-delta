@@ -8,5 +8,6 @@ public interface ICompareService
         string baselinePath,
         string targetPath,
         IProgress<CompareProgress>? progress = null,
+        bool skipLinks = false,
         CancellationToken cancellationToken = default);
 }

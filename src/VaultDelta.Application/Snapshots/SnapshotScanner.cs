@@ -10,6 +10,41 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly IContentHasher _contentHasher = contentHasher ?? throw new ArgumentNullException(nameof(contentHasher));
 
+    public async ValueTask<IReadOnlyList<string>> FindLinkedPathsAsync(
+        string rootPath,
+        SnapshotRuleSet rules,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
+        ArgumentNullException.ThrowIfNull(rules);
+        if (!_fileSystem.DirectoryExists(rootPath))
+        {
+            throw new DirectoryNotFoundException($"Snapshot root does not exist: {rootPath}");
+        }
+
+        List<string> links = [];
+        string? currentPath = null;
+        try
+        {
+            await foreach (FileSystemEntryMetadata metadata in _fileSystem.EnumerateEntriesAsync(
+                rootPath, path => rules.Evaluate(RelativePath.Parse(path)).IsIncluded, cancellationToken).ConfigureAwait(false))
+            {
+                currentPath = metadata.RelativePath;
+                RelativePath path = RelativePath.Parse(currentPath);
+                if (metadata.IsLink && rules.Evaluate(path).IsIncluded)
+                {
+                    links.Add(path.Value);
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            throw new SnapshotScanException($"无法检查目录中的链接：{exception.Message}", rootPath, currentPath, exception);
+        }
+
+        return links.AsReadOnly();
+    }
+
     public async ValueTask<SnapshotInventory> ScanAsync(
         string rootPath,
         SnapshotRuleSet rules,
@@ -31,6 +66,7 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
         }
 
         List<SnapshotEntry> entries = [];
+        string? currentPath = null;
 
         try
         {
@@ -43,7 +79,7 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
                     .ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
+                currentPath = metadata.RelativePath;
                 RelativePath relativePath = RelativePath.Parse(metadata.RelativePath);
                 if (!rules.Evaluate(relativePath).IsIncluded)
                 {
@@ -52,7 +88,9 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
 
                 if (metadata.IsLink)
                 {
-                    throw new SnapshotScanException($"Links and special filesystem entries are not supported: {relativePath}");
+                    throw new SnapshotScanException(
+                        "发现目录联接、符号链接或重解析点。可勾选“跳过链接”后重新比较；链接关系不会写入更新包。",
+                        rootPath, relativePath.Value);
                 }
 
                 if (metadata.Type == FileSystemEntryType.Directory)
@@ -72,6 +110,10 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
 
                 if (!IsStable(before, after))
                 {
+                    if (after.IsLink || after.Type != FileSystemEntryType.File)
+                    {
+                        throw new SnapshotScanException("文件在扫描期间变成了链接或目录，请停止写入后重试。", rootPath, relativePath.Value);
+                    }
                     sha256 = await _contentHasher
                         .ComputeSha256Async(metadata.FullPath, cancellationToken)
                         .ConfigureAwait(false);
@@ -81,7 +123,7 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
 
                     if (!IsStable(after, final))
                     {
-                        throw new SnapshotScanException($"File changed repeatedly while it was scanned: {relativePath}");
+                        throw new SnapshotScanException("文件在扫描期间持续变化，请停止写入后重试。", rootPath, relativePath.Value);
                     }
 
                     after = final;
@@ -103,9 +145,9 @@ public sealed class SnapshotScanner(IFileSystem fileSystem, IContentHasher conte
         {
             throw;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            throw new SnapshotScanException("The snapshot could not be read safely.", exception);
+            throw new SnapshotScanException($"无法读取快照：{exception.Message}", rootPath, currentPath, exception);
         }
 
         return SnapshotInventory.Create(rules.RulesId, entries);

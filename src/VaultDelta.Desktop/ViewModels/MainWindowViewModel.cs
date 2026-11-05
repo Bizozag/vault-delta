@@ -142,6 +142,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             string baselinePath,
             string targetPath,
             IProgress<VaultDelta.Application.Compare.CompareProgress>? progress = null,
+            bool skipLinks = false,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromException<VaultDelta.Application.Compare.CompareResult>(
                 new InvalidOperationException("Preview mode cannot compare folders."));

@@ -15,11 +15,50 @@ using VaultDelta.Application.Apply;
 using VaultDelta.Application.Patches;
 using VaultDelta.Domain.Apply;
 using VaultDelta.Domain.Patches;
+using VaultDelta.Application.Snapshots;
 
 namespace VaultDelta.Desktop.Tests;
 
 public sealed class MainWindowRenderingTests
 {
+    [AvaloniaFact]
+    public async Task Large_review_uses_a_bounded_number_of_visual_rows()
+    {
+        SnapshotInventory baseline = SnapshotInventory.Create("rules", []);
+        SnapshotInventory target = SnapshotInventory.Create("rules", Enumerable.Range(0, 20_000).Select(index =>
+            new SnapshotEntry(RelativePath.Parse($"{index:D6}.md"), SnapshotEntryKind.File,
+                new FileFingerprint(1, DateTimeOffset.UnixEpoch, new string('a', 64)))));
+        CompareResult result = new(baseline, target, DiffEngine.Compare(baseline, target), new CompareSummary(20_000, 0, 0, 0, 0, 20_000, 20_000, 0));
+        MainWindowViewModel shell = new(new NullFolderPicker(), new ImmediateCompareService(result));
+        shell.Compare.BaselinePath = "D:/old";
+        shell.Compare.TargetPath = "D:/new";
+        await shell.Compare.CompareAsync();
+        MainWindow window = new(shell);
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        ListBox list = window.FindControl<ListBox>("DiffReviewList")!;
+        list.BringIntoView();
+        Dispatcher.UIThread.RunJobs();
+        int realizedRows = list.GetVisualDescendants().OfType<ListBoxItem>().Count();
+        Assert.InRange(realizedRows, 1, 100);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task Link_error_renders_actionable_path_details()
+    {
+        MainWindowViewModel shell = new(new NullFolderPicker(), new LinkErrorCompareService());
+        shell.Compare.BaselinePath = "D:/Vault/baseline";
+        shell.Compare.TargetPath = "D:/Vault/target";
+        await shell.Compare.CompareAsync();
+        MainWindow window = new(shell) { Width = 1280, Height = 780 };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("node_modules/@excalidraw/common", shell.Compare.ErrorMessage);
+        SaveFrame(window, Path.Combine(Path.GetTempPath(), "vaultdelta-ui-preview", "compare-link-error.png"));
+        window.Close();
+    }
+
     [AvaloniaFact]
     public void Default_shell_renders_create_package_page_at_minimum_supported_size()
     {
@@ -48,7 +87,7 @@ public sealed class MainWindowRenderingTests
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("TargetDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchPackageDropZone")!));
         Assert.True(DragDrop.GetAllowDrop(window.FindControl<Border>("PatchTargetDropZone")!));
-        Assert.Equal("v0.1.10", ((MainWindowViewModel)window.DataContext!).VersionText);
+        Assert.Equal("v0.1.11", ((MainWindowViewModel)window.DataContext!).VersionText);
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "准备就绪");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "未开始事务");
         window.Close();
@@ -105,11 +144,12 @@ public sealed class MainWindowRenderingTests
     [AvaloniaFact]
     public async Task Compare_completed_state_renders_a_non_empty_review_preview()
     {
-        CompareResult result = CreateResult();
+        CompareResult result = CreateResult() with { ExcludedLinkPaths = ["node_modules/@excalidraw/common"] };
         MainWindowViewModel shell = new(new NullFolderPicker(), new ImmediateCompareService(result));
         shell.NavigateCommand.Execute("Compare");
         shell.Compare.BaselinePath = "D:/Vault/baseline";
         shell.Compare.TargetPath = "D:/Vault/target";
+        shell.Compare.SkipLinks = true;
         await shell.Compare.CompareAsync();
         MainWindow window = new(shell)
         {
@@ -120,6 +160,9 @@ public sealed class MainWindowRenderingTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.True(window.FindControl<StackPanel>("CompareResultPanel")!.IsVisible);
+        Assert.True(window.FindControl<Border>("ExcludedLinksPanel")!.IsVisible);
+        Assert.NotNull(window.FindControl<CheckBox>("SkipLinksCheckBox"));
+        Assert.NotNull(window.FindControl<ListBox>("DiffReviewList"));
         Assert.False(window.FindControl<Border>("CompareEmptyPanel")!.IsVisible);
         SaveFrame(window, Path.Combine(Path.GetTempPath(), "vaultdelta-ui-preview", "compare-completed.png"));
         window.Close();
@@ -272,16 +315,24 @@ public sealed class MainWindowRenderingTests
         public Task<string?> PickFolderAsync(string title, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
     }
 
+    private sealed class LinkErrorCompareService : ICompareService
+    {
+        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default) =>
+            ValueTask.FromException<CompareResult>(new SnapshotScanException(
+                "发现目录联接、符号链接或重解析点。可勾选“跳过链接”后重新比较；链接关系不会写入更新包。",
+                targetPath, "node_modules/@excalidraw/common"));
+    }
+
     private sealed class ImmediateCompareService(CompareResult result) : ICompareService
     {
-        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default) => ValueTask.FromResult(result);
+        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default) => ValueTask.FromResult(result);
     }
 
     private sealed class BlockingCompareService : ICompareService
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public async ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default)
+        public async ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default)
         {
             Started.SetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
@@ -291,7 +342,7 @@ public sealed class MainWindowRenderingTests
 
     private sealed class ThrowingCompareService : ICompareService
     {
-        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default) =>
+        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default) =>
             ValueTask.FromException<CompareResult>(new DirectoryNotFoundException());
     }
 

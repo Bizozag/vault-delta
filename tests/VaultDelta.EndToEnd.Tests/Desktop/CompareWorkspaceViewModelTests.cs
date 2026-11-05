@@ -7,11 +7,44 @@ using VaultDelta.Domain.Snapshots;
 using VaultDelta.Application.Apply;
 using VaultDelta.Application.Patches;
 using VaultDelta.Domain.Apply;
+using VaultDelta.Application.Snapshots;
 
 namespace VaultDelta.EndToEnd.Tests.Desktop;
 
 public sealed class CompareWorkspaceViewModelTests
 {
+    [Fact]
+    public async Task Link_failure_displays_root_relative_path_and_recovery_option()
+    {
+        using CompareWorkspaceViewModel viewModel = ReadyViewModel(new ThrowingCompareService(
+            new SnapshotScanException("发现链接，可勾选跳过链接后重试。", "D:/vault", "node_modules/local")));
+
+        await viewModel.CompareAsync();
+
+        Assert.Contains("D:/vault", viewModel.ErrorMessage);
+        Assert.Contains("node_modules/local", viewModel.ErrorMessage);
+        Assert.Contains("跳过链接", viewModel.ErrorMessage);
+        Assert.False(viewModel.SkipLinks);
+    }
+
+    [Fact]
+    public async Task Skip_links_is_forwarded_reported_and_invalidates_prior_results_when_changed()
+    {
+        ScopeCompareService service = new();
+        using CompareWorkspaceViewModel viewModel = ReadyViewModel(service);
+        viewModel.SkipLinks = true;
+
+        await viewModel.CompareAsync();
+
+        Assert.True(service.SkipLinks);
+        Assert.True(viewModel.HasExcludedLinks);
+        Assert.Contains("node_modules/local", viewModel.ExcludedLinkPathsText);
+        viewModel.SkipLinks = false;
+        Assert.False(viewModel.HasResult);
+        Assert.False(viewModel.HasExcludedLinks);
+        Assert.False(viewModel.CanBuildPatch);
+    }
+
     [Fact]
     public async Task Folder_picker_cancellation_preserves_existing_path()
     {
@@ -216,9 +249,20 @@ public sealed class CompareWorkspaceViewModelTests
             Task.FromResult(_selections.Count == 0 ? null : _selections.Dequeue());
     }
 
+    private sealed class ScopeCompareService : ICompareService
+    {
+        public bool SkipLinks { get; private set; }
+
+        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default)
+        {
+            SkipLinks = skipLinks;
+            return ValueTask.FromResult(CreateResult() with { ExcludedLinkPaths = ["node_modules/local"] });
+        }
+    }
+
     internal sealed class ImmediateCompareService(CompareResult result) : ICompareService
     {
-        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default) =>
+        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(result);
     }
 
@@ -226,7 +270,7 @@ public sealed class CompareWorkspaceViewModelTests
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public async ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default)
+        public async ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default)
         {
             Started.SetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
@@ -236,7 +280,7 @@ public sealed class CompareWorkspaceViewModelTests
 
     private sealed class ThrowingCompareService(Exception exception) : ICompareService
     {
-        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, CancellationToken cancellationToken = default) =>
+        public ValueTask<CompareResult> CompareAsync(string baselinePath, string targetPath, IProgress<CompareProgress>? progress = null, bool skipLinks = false, CancellationToken cancellationToken = default) =>
             ValueTask.FromException<CompareResult>(exception);
     }
 

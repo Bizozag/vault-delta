@@ -15,6 +15,11 @@ public sealed class LocalFileSystem : IFileSystem
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
 
         string canonicalRoot = Path.GetFullPath(rootPath);
+        FileSystemInfo rootInfo = CreateFileSystemInfo(canonicalRoot);
+        if (rootInfo.LinkTarget is not null || rootInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new InvalidDataException($"快照根目录不能是目录联接或符号链接，请选择实际目录：{canonicalRoot}");
+        }
         Stack<string> pendingDirectories = new();
         pendingDirectories.Push(canonicalRoot);
 
@@ -62,7 +67,7 @@ public sealed class LocalFileSystem : IFileSystem
     {
         bool isDirectory = info.Attributes.HasFlag(FileAttributes.Directory);
         bool isLink = info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint);
-        long length = isDirectory ? 0 : ((FileInfo)info).Length;
+        long length = isDirectory || isLink ? 0 : ((FileInfo)info).Length;
 
         return new FileSystemEntryMetadata(
             info.FullName,
